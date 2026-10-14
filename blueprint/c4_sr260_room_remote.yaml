@@ -1,0 +1,1053 @@
+# SPDX-License-Identifier: Apache-2.0
+# Original contributions attributed to masterdownload; see docs/attribution.md.
+blueprint:
+  name: Control4 SR-260 Room Remote v0.1 (menus, room controls, full remote, clock, volume)
+  author: masterdownload
+  domain: automation
+  homeassistant:
+    min_version: 2025.9.0
+  description: |-
+    One automation per SR-260 remote (one per room). The remote's screen and keys become a room controller:
+
+    * **Watch** and **Listen** keys open menus on the remote's screen. Add as many rows as you like; each row runs a **scene, script or automation**.
+    * **List** key opens a **Room** menu: lights (on/off and dim), switches, fans, thermostats (warmer / cooler / mode), blinds, plus scenes, scripts and automations. **Cancel** steps back one level. Room actions are silent by default.
+    * Optional scene / automation on **Room Off**, **I / II / III**, **Prev** and **DVR**.
+    * **Full remote**: D-pad, transport, digits, channel / page and colour keys go to a `remote` entity (the key names of Home Assistant's Roku integration by default). **Vol + / - / Mute** go to a media player.
+    * **When the remote is picked up** its screen gets a header (the room name, and the volume as a text bar on the second line), its clock is set, and your text colour and brightness are applied. The volume line is refreshed after every volume key.
+
+    Version **v0.1** (in development, not released). Needs the quirk files of the same package version (the 15 files in the package's quirks folder): install them and restart Home Assistant first, then this blueprint.
+    Keep names short (about 12 characters; the screen shows roughly 17-20 and the state is added after the name). Names must be unique, and the Watch, Listen and Room menu titles must all be different.
+    While a menu is open the remote handles Up / Down / Select / Cancel itself.
+  input:
+    remote:
+      name: SR-260 remote
+      description: The Control4 SR-260 in this room.
+      selector:
+        device:
+          filter:
+            - integration: zha
+              manufacturer: Control4
+              model: C4-SR260
+    wake_text:
+      name: Header, line 1 (room name)
+      description: >-
+        The room name shown on the remote's screen whenever it is picked up (the status bar with the clock and battery stays visible).
+        Templates are allowed. Leave blank to use the remote's area name in Home Assistant.
+      default: ""
+      selector:
+        text:
+    header_line2:
+      name: Header, line 2
+      description: >-
+        Optional second line under the room name, e.g. {{ states('sensor.room_temperature') }} F. It is replaced by the volume while a volume target is set (see "TV / streamer control").
+      default: ""
+      selector:
+        text:
+    show_header:
+      name: Show the header when the remote is picked up
+      description: Off leaves the screen as it is. The clock and text colour below are still sent.
+      default: true
+      selector:
+        boolean:
+
+    screen_section:
+      name: Screen look and clock
+      icon: mdi:palette
+      description: Sent to the remote each time it is picked up.
+      collapsed: false
+      input:
+        sync_clock:
+          name: Set the remote's clock
+          description: The top bar then shows the time, taken from Home Assistant's clock and time zone.
+          default: true
+          selector:
+            boolean:
+        set_text_color:
+          name: Set the text colour
+          description: Off leaves the remote's own colour. On, the colour and brightness below are used for all text and menus.
+          default: false
+          selector:
+            boolean:
+        text_color:
+          name: Text colour
+          description: The remote can show 256 colours (8 levels of red and green, 4 of blue), so the result is the nearest of those.
+          default: [176, 208, 224]
+          selector:
+            color_rgb:
+        text_brightness:
+          name: Text brightness
+          description: 100 is the colour as picked; lower values make the text dimmer.
+          default: 100
+          selector:
+            number:
+              min: 10
+              max: 100
+              step: 5
+              unit_of_measurement: "%"
+              mode: slider
+
+    watch_section:
+      name: Watch menu
+      icon: mdi:television-play
+      description: Opened by the Watch key. Add one row per item.
+      collapsed: false
+      input:
+        watch_title:
+          name: Menu title
+          default: Watch
+          selector:
+            text:
+        watch_items:
+          name: Items
+          description: Each row has a name (shown on the remote) and the scene, script or automation it runs.
+          default: []
+          selector:
+            object:
+              multiple: true
+              label_field: label
+              description_field: target
+              fields:
+                label:
+                  label: Name on the remote
+                  required: true
+                  selector:
+                    text:
+                target:
+                  label: Runs
+                  required: true
+                  selector:
+                    entity:
+                      domain:
+                        - scene
+                        - script
+                        - automation
+
+    listen_section:
+      name: Listen menu
+      icon: mdi:music
+      description: Opened by the Listen key. Add one row per item.
+      collapsed: false
+      input:
+        listen_title:
+          name: Menu title
+          default: Listen
+          selector:
+            text:
+        listen_items:
+          name: Items
+          description: Each row has a name (shown on the remote) and the scene, script or automation it runs.
+          default: []
+          selector:
+            object:
+              multiple: true
+              label_field: label
+              description_field: target
+              fields:
+                label:
+                  label: Name on the remote
+                  required: true
+                  selector:
+                    text:
+                target:
+                  label: Runs
+                  required: true
+                  selector:
+                    entity:
+                      domain:
+                        - scene
+                        - script
+                        - automation
+
+    room_section:
+      name: Room controls (List key)
+      icon: mdi:lightbulb-group
+      description: >-
+        Opened by the List key. Switches and fans toggle when chosen. Lights, thermostats and blinds open a small menu
+        (Cancel goes back). Scenes, scripts and automations run.
+      collapsed: false
+      input:
+        room_title:
+          name: Menu title
+          default: Room
+          selector:
+            text:
+        room_items:
+          name: Items
+          description: Each row has a name (shown on the remote) and the thing it controls.
+          default: []
+          selector:
+            object:
+              multiple: true
+              label_field: label
+              description_field: entity
+              fields:
+                label:
+                  label: Name on the remote
+                  required: true
+                  selector:
+                    text:
+                entity:
+                  label: Controls
+                  required: true
+                  selector:
+                    entity:
+                      domain:
+                        - light
+                        - switch
+                        - input_boolean
+                        - fan
+                        - cover
+                        - climate
+                        - humidifier
+                        - valve
+                        - media_player
+                        - scene
+                        - script
+                        - automation
+        show_states:
+          name: Show the state after each name
+          description: e.g. "Floor Lamp 60%" or "Ecobee 72 Heat". Keep names short so the state is not cut off.
+          default: true
+          selector:
+            boolean:
+        room_feedback:
+          name: Show a result message after a Room action
+          description: >-
+            Off (default): the remote stays quiet and you see the light, fan or thermostat change. On: the screen also shows a short message
+            such as "Floor Lamp: On", or "Running: Movie" for a scene.
+          default: false
+          selector:
+            boolean:
+
+    keys_section:
+      name: Other keys (scene, script or automation)
+      icon: mdi:gesture-tap-button
+      description: Each key runs the scene, script or automation you pick. Leave empty to ignore the key.
+      collapsed: true
+      input:
+        room_off_target:
+          name: Room Off key
+          default: ""
+          selector:
+            entity:
+              domain:
+                - scene
+                - script
+                - automation
+        i_target:
+          name: I key
+          default: ""
+          selector:
+            entity:
+              domain:
+                - scene
+                - script
+                - automation
+        ii_target:
+          name: II key
+          default: ""
+          selector:
+            entity:
+              domain:
+                - scene
+                - script
+                - automation
+        iii_target:
+          name: III key
+          default: ""
+          selector:
+            entity:
+              domain:
+                - scene
+                - script
+                - automation
+        prev_target:
+          name: Prev key
+          default: ""
+          selector:
+            entity:
+              domain:
+                - scene
+                - script
+                - automation
+        dvr_target:
+          name: DVR key
+          default: ""
+          selector:
+            entity:
+              domain:
+                - scene
+                - script
+                - automation
+
+    media_section:
+      name: TV / streamer control (full remote)
+      icon: mdi:remote-tv
+      description: Where the navigation, transport, digit and volume keys are sent. Leave empty to ignore those keys.
+      collapsed: false
+      input:
+        remote_target:
+          name: Remote entity
+          description: A `remote` entity (Roku, Android TV, Apple TV, Harmony ...). Receives D-pad, transport, digit, channel and colour keys.
+          default: ""
+          selector:
+            entity:
+              domain: remote
+        volume_target:
+          name: Volume target
+          description: The media player controlled by Vol + / Vol - / Mute.
+          default: ""
+          selector:
+            entity:
+              domain: media_player
+        show_volume:
+          name: Show the volume on the remote's screen
+          description: >-
+            The volume of the target above is shown on the second line of the header: when the remote is picked up, and again after every
+            Vol + / Vol - / Mute. A device that is off shows "Vol: device off".
+          default: true
+          selector:
+            boolean:
+        volume_style:
+          name: Volume display
+          description: How the level is drawn on the header's second line.
+          default: number_bar
+          selector:
+            select:
+              options:
+                - label: "Number and bar (Vol 45 ++++-----)"
+                  value: number_bar
+                - label: "Bar only (long bar, 20 steps)"
+                  value: bar
+                - label: "Number only (Vol 45%)"
+                  value: number
+        volume_settle_ms:
+          name: Wait for the receiver (ms)
+          description: >-
+            After a volume key, how long to wait for the receiver to report its new level before the screen is updated. The remote can only
+            receive for about half a second after a key event, so keep this below 450.
+          default: 300
+          selector:
+            number:
+              min: 0
+              max: 450
+              step: 50
+              unit_of_measurement: ms
+              mode: box
+
+    commands_section:
+      name: Key command names (default = Roku)
+      icon: mdi:form-textbox
+      description: >-
+        The command string sent to the remote entity for each key. The defaults are the key names of Home Assistant's Roku integration (up, select, back, home, reverse, forward, replay, channel_up ...).
+        Leave a field empty to ignore that key. Other platforms use other spellings, e.g. Android TV DPAD_UP / MEDIA_PLAY.
+      collapsed: true
+      input:
+        up_command:
+          name: Up
+          default: up
+          selector:
+            text:
+        down_command:
+          name: Down
+          default: down
+          selector:
+            text:
+        left_command:
+          name: Left
+          default: left
+          selector:
+            text:
+        right_command:
+          name: Right
+          default: right
+          selector:
+            text:
+        select_command:
+          name: Select / OK
+          default: select
+          selector:
+            text:
+        cancel_command:
+          name: Cancel / Back
+          default: back
+          selector:
+            text:
+        home_command:
+          name: Control4 key (Home)
+          default: home
+          selector:
+            text:
+        menu_command:
+          name: Menu
+          default: ""
+          selector:
+            text:
+        info_command:
+          name: Info
+          default: info
+          selector:
+            text:
+        guide_command:
+          name: Guide
+          default: ""
+          selector:
+            text:
+        play_command:
+          name: Play
+          default: play
+          selector:
+            text:
+        pause_command:
+          name: Pause
+          description: Roku has no separate Pause; play toggles.
+          default: play
+          selector:
+            text:
+        stop_command:
+          name: Stop
+          default: ""
+          selector:
+            text:
+        skip_back_command:
+          name: Skip back
+          default: replay
+          selector:
+            text:
+        skip_forward_command:
+          name: Skip forward
+          default: ""
+          selector:
+            text:
+        rewind_command:
+          name: Rewind
+          default: reverse
+          selector:
+            text:
+        fast_forward_command:
+          name: Fast forward
+          default: forward
+          selector:
+            text:
+        record_command:
+          name: Record
+          default: ""
+          selector:
+            text:
+        page_up_command:
+          name: Page up
+          default: ""
+          selector:
+            text:
+        page_down_command:
+          name: Page down
+          default: ""
+          selector:
+            text:
+        channel_up_command:
+          name: Channel up
+          default: channel_up
+          selector:
+            text:
+        channel_down_command:
+          name: Channel down
+          default: channel_down
+          selector:
+            text:
+        red_command:
+          name: Red
+          default: ""
+          selector:
+            text:
+        green_command:
+          name: Green
+          default: ""
+          selector:
+            text:
+        yellow_command:
+          name: Yellow
+          default: ""
+          selector:
+            text:
+        blue_command:
+          name: Blue
+          default: ""
+          selector:
+            text:
+        digit_command_template:
+          name: Digits 0-9 (template)
+          description: The text {n} is replaced by the digit. Roku example Lit_{n}. Android TV / LG example {n}.
+          default: "Lit_{n}"
+          selector:
+            text:
+        star_command:
+          name: Star (*)
+          default: "Lit_*"
+          selector:
+            text:
+        hash_command:
+          name: Hash (#)
+          default: "Lit_#"
+          selector:
+            text:
+
+mode: parallel
+max: 10
+max_exceeded: silent
+
+triggers:
+  - trigger: event
+    event_type: zha_event
+    event_data:
+      device_id: !input remote
+      command: remote_button_short_press
+    id: press
+  - trigger: event
+    event_type: zha_event
+    event_data:
+      device_id: !input remote
+      command: remote_button_long_press
+    id: hold
+  - trigger: event
+    event_type: zha_event
+    event_data:
+      device_id: !input remote
+      command: remote_button_short_release
+      args:
+        button: volume_up
+    id: release
+  - trigger: event
+    event_type: zha_event
+    event_data:
+      device_id: !input remote
+      command: remote_button_short_release
+      args:
+        button: volume_down
+    id: release
+  - trigger: event
+    event_type: zha_event
+    event_data:
+      device_id: !input remote
+      command: remote_button_short_release
+      args:
+        button: volume_mute
+    id: release
+  - trigger: event
+    event_type: zha_event
+    event_data:
+      device_id: !input remote
+      command: motion_wake
+    id: wake
+  - trigger: event
+    event_type: zha_event
+    event_data:
+      device_id: !input remote
+      command: menu_select
+    id: menu
+  - trigger: event
+    event_type: zha_event
+    event_data:
+      device_id: !input remote
+      command: menu_cancel
+    id: menu_cancel
+
+variables:
+  remote_device: !input remote
+  # ZHA stores the IEEE as the device's zigbee connection.
+  remote_ieee: >-
+    {% set conns = device_attr(remote_device, 'connections') | list %}
+    {{ conns[0][1] if conns else '' }}
+  wake_text: !input wake_text
+  remote_target: !input remote_target
+  volume_target: !input volume_target
+  show_volume: !input show_volume
+  show_states: !input show_states
+  room_feedback: !input room_feedback
+  show_header: !input show_header
+  header_line2: !input header_line2
+  sync_clock: !input sync_clock
+  set_text_color: !input set_text_color
+  text_color: !input text_color
+  text_brightness: !input text_brightness
+  volume_style: !input volume_style
+  volume_settle_ms: !input volume_settle_ms
+  # Line 1 of the header: the blueprint's text, else the remote's area in Home Assistant, else its device name.
+  header_room: >-
+    {{ ((wake_text | string | trim) or area_name(remote_device) or device_attr(remote_device, 'name_by_user') or device_attr(remote_device, 'name') or 'Room') | string }}
+  # The text colour as the remote wants it: one RGB332 byte (red in bits 7-5, green in bits 4-2, blue in bits 1-0).
+  # The brightness scales red, green and blue first (10 % to 100 %).
+  text_color_byte: >-
+    {% set c = text_color if (text_color is iterable and text_color is not string and (text_color | length) == 3) else [176, 208, 224] %}
+    {% set f = [[(text_brightness | float(100)) / 100, 1] | min, 0.1] | max %}
+    {% set r = [[(c[0] | float(0)) * f, 255] | min, 0] | max %}
+    {% set g = [[(c[1] | float(0)) * f, 255] | min, 0] | max %}
+    {% set b = [[(c[2] | float(0)) * f, 255] | min, 0] | max %}
+    {{ ((r // 32) | int) * 32 + ((g // 32) | int) * 4 + ((b // 64) | int) }}
+  watch_title: !input watch_title
+  listen_title: !input listen_title
+  room_title: !input room_title
+  watch_rows: !input watch_items
+  listen_rows: !input listen_items
+  room_rows: !input room_items
+  # Menu rows -> [{label, target}]. Names are cut to 24 characters (a list page must fit one radio frame) and
+  # characters the remote's screen cannot show or that would break the frame are replaced.
+  watch_list: >-
+    {% set ns = namespace(out=[]) %}
+    {% set rows = watch_rows if watch_rows is iterable and watch_rows is not string else [] %}
+    {% for r in rows if r is mapping and r.get('target') %}
+      {% set t = r.get('target') %}
+      {% set nm = ((r.get('label') or state_attr(t, 'friendly_name') or t) | string)[:24] | replace('|', '/') | replace('"', '') | replace('\\', '/') | replace(']', ')') %}
+      {% set ns.out = ns.out + [{'label': nm, 'target': t}] %}
+    {% endfor %}
+    {{ ns.out }}
+  listen_list: >-
+    {% set ns = namespace(out=[]) %}
+    {% set rows = listen_rows if listen_rows is iterable and listen_rows is not string else [] %}
+    {% for r in rows if r is mapping and r.get('target') %}
+      {% set t = r.get('target') %}
+      {% set nm = ((r.get('label') or state_attr(t, 'friendly_name') or t) | string)[:24] | replace('|', '/') | replace('"', '') | replace('\\', '/') | replace(']', ')') %}
+      {% set ns.out = ns.out + [{'label': nm, 'target': t}] %}
+    {% endfor %}
+    {{ ns.out }}
+  # Room rows -> [{label, entity, domain, text}] where text = name + current state (what the menu shows).
+  room_list: >-
+    {% set ns = namespace(out=[]) %}
+    {% set rows = room_rows if room_rows is iterable and room_rows is not string else [] %}
+    {% for r in rows if r is mapping and r.get('entity') %}
+      {% set e = r.get('entity') %}
+      {% set d = e.split('.')[0] %}
+      {% set s = states(e) %}
+      {% set nm = ((r.get('label') or state_attr(e, 'friendly_name') or e) | string)[:22] | replace('|', '/') | replace('"', '') | replace('\\', '/') | replace(']', ')') %}
+      {% set sfx = '' %}
+      {% if show_states and d not in ['scene', 'script', 'automation'] %}
+        {% if s in ['unavailable', 'unknown'] %}
+          {% set sfx = ' --' %}
+        {% elif d == 'light' %}
+          {% set b = state_attr(e, 'brightness') %}
+          {% set pct = ((b | float(0)) / 255 * 100) | round(0) | int %}
+          {% set sfx = (' ' ~ pct ~ '%') if (s == 'on' and b is not none) else (' On' if s == 'on' else ' Off') %}
+        {% elif d == 'climate' %}
+          {% set t = state_attr(e, 'current_temperature') %}
+          {% set sfx = ((' ' ~ (t | float(0) | round(0) | int)) if t is not none else '') ~ ' ' ~ (s | replace('_', ' ') | title) %}
+        {% elif d in ['cover', 'valve'] %}
+          {% set sfx = ' ' ~ (s | title) %}
+        {% else %}
+          {% set sfx = ' Off' if s in ['off', 'standby', 'closed'] else ' On' %}
+        {% endif %}
+      {% endif %}
+      {% set ns.out = ns.out + [{'label': nm, 'entity': e, 'domain': d, 'text': nm ~ sfx}] %}
+    {% endfor %}
+    {{ ns.out }}
+  key_targets:
+    room_off: !input room_off_target
+    i: !input i_target
+    ii: !input ii_target
+    iii: !input iii_target
+    prev: !input prev_target
+    dvr: !input dvr_target
+  commands:
+    up: !input up_command
+    down: !input down_command
+    left: !input left_command
+    right: !input right_command
+    select: !input select_command
+    cancel: !input cancel_command
+    control4: !input home_command
+    menu: !input menu_command
+    info: !input info_command
+    guide: !input guide_command
+    play: !input play_command
+    pause: !input pause_command
+    stop: !input stop_command
+    skip_back: !input skip_back_command
+    skip_forward: !input skip_forward_command
+    reverse: !input rewind_command
+    forward: !input fast_forward_command
+    record: !input record_command
+    page_up: !input page_up_command
+    page_down: !input page_down_command
+    channel_up: !input channel_up_command
+    channel_down: !input channel_down_command
+    red: !input red_command
+    green: !input green_command
+    yellow: !input yellow_command
+    blue: !input blue_command
+    star: !input star_command
+    hash: !input hash_command
+  digit_template: !input digit_command_template
+  # Keys that keep repeating while held (the remote re-sends them while held). Everything else acts once per press.
+  repeat_keys:
+    - up
+    - down
+    - left
+    - right
+    - channel_up
+    - channel_down
+    - page_up
+    - page_down
+    - reverse
+    - forward
+  args: >-
+    {{ trigger.event.data.args if trigger.event.data.args is mapping else {} }}
+  button: "{{ args.get('button', '') }}"
+  sel_title: "{{ (args.get('title') or '') if trigger.id in ['menu', 'menu_cancel'] else '' }}"
+  sel_index: "{{ (args.get('selected_index', -1) | int(-1)) if trigger.id in ['menu', 'menu_cancel'] else -1 }}"
+  sel_item: "{{ (args.get('item') or '') if trigger.id == 'menu' else '' }}"
+  key_target: "{{ (key_targets.get(button) or '') if trigger.id == 'press' else '' }}"
+  cmd: >-
+    {% if button.startswith('digit_') %}
+      {{ (digit_template | replace('{n}', button[6:])) if digit_template else '' }}
+    {% else %}
+      {{ commands.get(button) or '' }}
+    {% endif %}
+  # Which Room-menu row does this menu event belong to? sub=false: the row was chosen in the Room menu itself;
+  # sub=true: the event came from that row's own sub-menu (its title is the row's name).
+  room_pick: >-
+    {% set ns = namespace(v={}) %}
+    {% if trigger.id in ['menu', 'menu_cancel'] and (sel_title | string) != '' %}
+      {% if (sel_title | string) == (room_title | string) %}
+        {% if trigger.id == 'menu' and sel_index >= 0 and sel_index < (room_list | length) %}
+          {% set r = room_list[sel_index] %}
+          {% set ns.v = {'idx': sel_index, 'sub': false, 'label': r.label, 'entity': r.entity, 'domain': r.domain} %}
+        {% endif %}
+      {% else %}
+        {% for r in room_list %}
+          {% if ns.v == {} and (r.label | string) == (sel_title | string) %}
+            {% set ns.v = {'idx': loop.index0, 'sub': true, 'label': r.label, 'entity': r.entity, 'domain': r.domain} %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    {% endif %}
+    {{ ns.v }}
+  pick_entity: "{{ room_pick.get('entity', '') }}"
+  pick_domain: "{{ room_pick.get('domain', '') }}"
+  pick_label: "{{ room_pick.get('label', '') }}"
+  pick_sub: "{{ room_pick.get('sub', false) }}"
+  pick_idx: "{{ room_pick.get('idx', -1) }}"
+  pick_state: "{{ states(pick_entity) if pick_entity != '' else '' }}"
+  # Light: does it dim (anything beyond plain on/off)?
+  pick_dim: >-
+    {{ pick_domain == 'light' and ((state_attr(pick_entity, 'supported_color_modes') or []) | map('lower') | reject('in', ['onoff', 'unknown']) | list | length) > 0 }}
+  # Blinds: do they accept a position (feature bit 4)?
+  pick_pos: >-
+    {{ pick_domain == 'cover' and ((state_attr(pick_entity, 'supported_features') | int(0)) // 4) % 2 == 1 }}
+  # Thermostat set-points and limits.
+  pick_temp: "{{ (state_attr(pick_entity, 'temperature') | float(none)) if pick_domain == 'climate' else none }}"
+  pick_low: "{{ (state_attr(pick_entity, 'target_temp_low') | float(none)) if pick_domain == 'climate' else none }}"
+  pick_high: "{{ (state_attr(pick_entity, 'target_temp_high') | float(none)) if pick_domain == 'climate' else none }}"
+  pick_step: "{{ (state_attr(pick_entity, 'target_temp_step') | float(1)) if pick_domain == 'climate' else 1 }}"
+  pick_min: "{{ (state_attr(pick_entity, 'min_temp') | float(0)) if pick_domain == 'climate' else 0 }}"
+  pick_max: "{{ (state_attr(pick_entity, 'max_temp') | float(1000)) if pick_domain == 'climate' else 1000 }}"
+  # `lower` (not `string`) so enum members such as HVACMode.HEAT become plain text.
+  pick_modes: >-
+    {{ ((state_attr(pick_entity, 'hvac_modes') or []) | map('lower') | list) if pick_domain == 'climate' else [] }}
+  # Thermostat Warmer / Cooler arithmetic. The sub-menu shows "Warmer (set 72)"; that number is the base for the
+  # next press, so quick repeated presses add up even when the thermostat reports its new set-point late.
+  c_base: >-
+    {% set m = ((sel_item | string) | regex_findall('set ([0-9]+[.]?[0-9]*)')) if pick_domain == 'climate' else [] %}
+    {{ (m[0] | float(none)) if m else (pick_temp if pick_domain == 'climate' else none) }}
+  c_dir: "{{ 1 if sel_index == 0 else -1 }}"
+  c_dual: "{{ pick_domain == 'climate' and pick_temp is none and pick_low is not none and pick_high is not none }}"
+  c_new: >-
+    {% if pick_domain == 'climate' and not c_dual and c_base is not none %}
+      {{ ([([c_base + c_dir * pick_step, pick_max] | min), pick_min] | max) | round(1) }}
+    {% else %}
+      {{ none }}
+    {% endif %}
+  c_low: "{{ (([pick_low + c_dir * pick_step, pick_min] | max) | round(1)) if c_dual else none }}"
+  c_high: "{{ (([pick_high + c_dir * pick_step, pick_max] | min) | round(1)) if c_dual else none }}"
+  c_ok: "{{ pick_domain == 'climate' and sel_index in [0, 1] and (c_new is not none or c_dual) }}"
+  # What this event means.
+  situation: >-
+    {% set ns = namespace(s='none') %}
+    {% if trigger.id == 'wake' %}
+      {% if show_header or sync_clock or set_text_color %}{% set ns.s = 'wake' %}{% endif %}
+    {% elif trigger.id == 'release' %}
+      {% if show_volume and volume_target != '' %}{% set ns.s = 'volume_release' %}{% endif %}
+    {% elif trigger.id == 'press' %}
+      {% if button == 'watch' and (watch_list | length) > 0 %}{% set ns.s = 'open_watch' %}
+      {% elif button == 'listen' and (listen_list | length) > 0 %}{% set ns.s = 'open_listen' %}
+      {% elif button == 'list' and (room_list | length) > 0 %}{% set ns.s = 'open_room' %}
+      {% elif key_target != '' %}{% set ns.s = 'key_run' %}
+      {% elif button in ['volume_up', 'volume_down', 'volume_mute'] and volume_target != '' %}{% set ns.s = 'volume' %}
+      {% elif remote_target != '' and (cmd | string | trim) != '' %}{% set ns.s = 'remote_key' %}
+      {% endif %}
+    {% elif trigger.id == 'hold' %}
+      {% if button in ['volume_up', 'volume_down'] and volume_target != '' %}{% set ns.s = 'volume' %}
+      {% elif button in repeat_keys and remote_target != '' and (cmd | string | trim) != '' %}{% set ns.s = 'remote_key' %}
+      {% endif %}
+    {% elif trigger.id == 'menu' %}
+      {% if (sel_title | string) == (watch_title | string) %}
+        {% if sel_index >= 0 and sel_index < (watch_list | length) %}{% set ns.s = 'run_watch' %}{% endif %}
+      {% elif (sel_title | string) == (listen_title | string) %}
+        {% if sel_index >= 0 and sel_index < (listen_list | length) %}{% set ns.s = 'run_listen' %}{% endif %}
+      {% elif pick_entity != '' and not pick_sub %}
+        {% if pick_domain in ['scene', 'script', 'automation'] %}{% set ns.s = 'room_run' %}
+        {% elif pick_dim or pick_domain in ['cover', 'climate'] %}{% set ns.s = 'room_open_sub' %}
+        {% else %}{% set ns.s = 'room_toggle' %}
+        {% endif %}
+      {% elif pick_entity != '' and pick_sub %}{% set ns.s = 'room_sub' %}
+      {% endif %}
+    {% elif trigger.id == 'menu_cancel' %}
+      {% if pick_entity != '' and pick_sub %}{% set ns.s = 'room_back' %}{% endif %}
+    {% endif %}
+    {{ ns.s }}
+  # The scene / script / automation this event runs, and its name for the screen.
+  run_entity: >-
+    {% if situation == 'run_watch' %}{{ watch_list[sel_index].target }}
+    {%- elif situation == 'run_listen' %}{{ listen_list[sel_index].target }}
+    {%- elif situation == 'key_run' %}{{ key_target }}
+    {%- elif situation == 'room_run' %}{{ pick_entity }}
+    {%- endif %}
+  run_label: >-
+    {% if situation == 'run_watch' %}{{ watch_list[sel_index].label }}
+    {%- elif situation == 'run_listen' %}{{ listen_list[sel_index].label }}
+    {%- elif situation == 'room_run' %}{{ pick_label }}
+    {%- endif %}
+  # Items of a Room row's own sub-menu (light: on/off + dim steps, blinds: open / close / stop, thermostat: warmer /
+  # cooler / modes).
+  sub_items: >-
+    {% set ns = namespace(v=[]) %}
+    {% if pick_domain == 'light' %}
+      {% set ns.v = ['Turn Off' if pick_state == 'on' else 'Turn On', '25%', '50%', '75%', '100%'] %}
+    {% elif pick_domain == 'cover' %}
+      {% set ns.v = ['Open', 'Close', 'Stop'] + (['25%', '50%', '75%'] if pick_pos else []) %}
+    {% elif pick_domain == 'climate' %}
+      {% set shown = c_new if (situation == 'room_sub' and c_ok and c_new is not none) else pick_temp %}
+      {% set t = (shown | float | round(1) | string) if shown is not none else '' %}
+      {% set t = t[:-2] if t.endswith('.0') else t %}
+      {% set tag = (' (set ' ~ t ~ ')') if t != '' else '' %}
+      {% set ns.v = ['Warmer' ~ tag, 'Cooler' ~ tag] + (pick_modes | map('replace', '_', ' ') | map('title') | list) %}
+    {% endif %}
+    {{ ns.v }}
+  # The service to call.
+  svc: >-
+    {% if run_entity != '' %}
+      {{ {'automation': 'automation.trigger', 'script': 'script.turn_on', 'scene': 'scene.turn_on'}.get(run_entity.split('.')[0], 'homeassistant.turn_on') }}
+    {% elif situation == 'room_toggle' %}
+      {{ '' if pick_state in ['unavailable', 'unknown'] else 'homeassistant.toggle' }}
+    {% elif situation == 'room_sub' %}
+      {% set it = sel_item | string %}
+      {% if pick_domain == 'light' %}
+        {{ 'light.toggle' if it.startswith('Turn') else 'light.turn_on' }}
+      {% elif pick_domain == 'cover' %}
+        {{ 'cover.open_cover' if it == 'Open' else ('cover.close_cover' if it == 'Close' else ('cover.stop_cover' if it == 'Stop' else 'cover.set_cover_position')) }}
+      {% elif pick_domain == 'climate' %}
+        {% if sel_index in [0, 1] %}{{ 'climate.set_temperature' if c_ok else '' }}{% else %}climate.set_hvac_mode{% endif %}
+      {% endif %}
+    {% endif %}
+  svc_entity: "{{ run_entity if run_entity != '' else pick_entity }}"
+  svc_data: >-
+    {% if situation == 'room_sub' %}
+      {% set it = sel_item | string %}
+      {% if pick_domain == 'light' and it.endswith('%') %}
+        {{ {'brightness_pct': (it | replace('%', '') | int(0))} }}
+      {% elif pick_domain == 'cover' and it.endswith('%') %}
+        {{ {'position': (it | replace('%', '') | int(0))} }}
+      {% elif pick_domain == 'climate' and sel_index in [0, 1] and c_ok %}
+        {% if c_dual %}{{ {'target_temp_low': c_low, 'target_temp_high': c_high} }}{% else %}{{ {'temperature': c_new} }}{% endif %}
+      {% elif pick_domain == 'climate' and sel_index >= 2 %}
+        {{ {'hvac_mode': (it | lower | replace(' ', '_'))} }}
+      {% else %}
+        {{ {} }}
+      {% endif %}
+    {% else %}
+      {{ {} }}
+    {% endif %}
+  # Confirmation text for toggles and sub-menu choices.
+  result_text: >-
+    {% set on_now = pick_state not in ['off', 'closed', 'unavailable', 'unknown', 'standby'] %}
+    {% set it = sel_item | string %}
+    {% if situation == 'room_toggle' %}
+      {% if pick_state in ['unavailable', 'unknown'] %}{{ pick_label }}: unavailable
+      {% elif pick_domain in ['cover', 'valve'] %}{{ pick_label }}: {{ 'Closing' if on_now else 'Opening' }}
+      {% else %}{{ pick_label }}: {{ 'Off' if on_now else 'On' }}
+      {% endif %}
+    {% elif situation == 'room_sub' %}
+      {% if pick_domain == 'light' %}
+        {% if it.startswith('Turn') %}{{ pick_label }}: {{ 'Off' if pick_state == 'on' else 'On' }}{% else %}{{ pick_label }} {{ it }}{% endif %}
+      {% elif pick_domain == 'cover' %}
+        {% if it == 'Open' %}{{ pick_label }}: Opening
+        {% elif it == 'Close' %}{{ pick_label }}: Closing
+        {% elif it == 'Stop' %}{{ pick_label }}: Stopped
+        {% else %}{{ pick_label }} {{ it }}
+        {% endif %}
+      {% elif pick_domain == 'climate' %}
+        {% if sel_index in [0, 1] %}{% if not c_ok %}{{ pick_label }}: no set-point{% endif %}{% else %}{{ pick_label }}: {{ it }}{% endif %}
+      {% endif %}
+    {% endif %}
+  # A one-line message for the screen. Watch / Listen rows always confirm; Room actions only when "room_feedback" is on.
+  screen_text: >-
+    {% if situation in ['run_watch', 'run_listen'] %}Running: {{ run_label }}
+    {%- elif situation == 'room_run' and room_feedback %}Running: {{ run_label }}
+    {%- elif situation == 'key_run' %}{{ 'Room off' if button == 'room_off' else '' }}
+    {%- elif situation in ['room_toggle', 'room_sub'] and room_feedback %}{{ result_text }}
+    {%- endif %}
+  # The menu to open on the remote (after a short wait when the remote is still closing the previous one).
+  menu_title: >-
+    {% if situation == 'open_watch' %}{{ watch_title }}
+    {%- elif situation == 'open_listen' %}{{ listen_title }}
+    {%- elif situation in ['open_room', 'room_back'] %}{{ room_title }}
+    {%- elif situation == 'room_open_sub' %}{{ pick_label }}
+    {%- elif situation == 'room_sub' and pick_domain == 'climate' and c_ok %}{{ pick_label }}
+    {%- endif %}
+  menu_items: >-
+    {% if situation == 'open_watch' %}{{ watch_list | map(attribute='label') | list }}
+    {%- elif situation == 'open_listen' %}{{ listen_list | map(attribute='label') | list }}
+    {%- elif situation in ['open_room', 'room_back'] %}{{ room_list | map(attribute='text') | list }}
+    {%- elif situation == 'room_open_sub' or (situation == 'room_sub' and pick_domain == 'climate' and c_ok) %}{{ sub_items }}
+    {%- else %}{{ [] }}
+    {%- endif %}
+  menu_index: "{{ pick_idx if situation == 'room_back' else (sel_index if situation == 'room_sub' else 0) }}"
+  menu_delay_ms: "{{ 500 if situation in ['room_open_sub', 'room_back', 'room_sub'] else 0 }}"
+  # Watch / Listen rows are sources: the quirk then writes the chosen row into the header. Room rows are actions: it must not.
+  menu_show_selection: "{{ 1 if situation in ['open_watch', 'open_listen'] else 0 }}"
+
+actions:
+  # 0. On pick-up: the text colour and the clock (each only when enabled). The header follows in step 6.
+  - if:
+      - "{{ situation == 'wake' and set_text_color }}"
+    then:
+      - action: zha.issue_zigbee_cluster_command
+        continue_on_error: true
+        data:
+          ieee: "{{ remote_ieee }}"
+          endpoint_id: 1
+          cluster_id: 64583
+          cluster_type: in
+          command: 5
+          command_type: server
+          params:
+            color: "{{ text_color_byte }}"
+  - if:
+      - "{{ situation == 'wake' and sync_clock }}"
+    then:
+      - variables:
+          # One reading of the clock, so the hour, minute and second can never straddle a rollover. Weekday: Monday = 1 ... Sunday = 0.
+          clock_now: >-
+            {% set n = now() %}
+            {{ {'hour': n.hour, 'minute': n.minute, 'second': n.second, 'weekday': n.isoweekday() % 7} }}
+      - action: zha.issue_zigbee_cluster_command
+        continue_on_error: true
+        data:
+          ieee: "{{ remote_ieee }}"
+          endpoint_id: 1
+          cluster_id: 64583
+          cluster_type: in
+          command: 4
+          command_type: server
+          params:
+            hour: "{{ clock_now['hour'] }}"
+            minute: "{{ clock_now['minute'] }}"
+            second: "{{ clock_now['second'] }}"
+            weekday: "{{ clock_now['weekday'] }}"
+
+  # 1. Text on the remote's screen.
+  - if:
+      - "{{ (screen_text | string | trim) != '' }}"
+    then:
+      - action: zha.set_zigbee_cluster_attribute
+        continue_on_error: true
+        data:
+          ieee: "{{ remote_ieee }}"
+          endpoint_id: 1
+          cluster_id: 64583
+          cluster_type: in
+          attribute: 0
+          value: "{{ screen_text }}"
+
+  # 2. Open a menu on the remote.
+  - if:
+      - "{{ (menu_title | string | trim) != '' }}"
+    then:
+      - delay:
+          milliseconds: "{{ menu_delay_ms }}"
+      - action: zha.issue_zigbee_cluster_command
+        continue_on_error: true
+        data:
+          ieee: "{{ remote_ieee }}"
+          endpoint_id: 1
+          cluster_id: 64583
+          cluster_type: in
+          command: 0
+          command_type: server
+          params:
+            title: "{{ menu_title }}"
+            items: "{{ menu_items | join('|') }}"
+            selected_index: "{{ menu_index }}"
+            show_selection: "{{ menu_show_selection }}"
+
+  # 3. Run a scene / script / automation, or control a room device.
+  - if:
+      - "{{ (svc | string | trim) != '' }}"
+    then:
+      - action: "{{ svc | trim }}"
+        target:
+          entity_id: "{{ svc_entity }}"
+        data: "{{ svc_data }}"
+
+  # 4. Vol + / Vol - (repeat while held) and Mute.
+  - if:
+      - "{{ situation == 'volume' }}"
+    then:
+      - choose:
+          - conditions: "{{ button == 'volume_up' }}"
+            sequence:
+              - action: media_player.volume_up
+                target:
+                  entity_id: "{{ volume_target }}"
+          - conditions: "{{ button == 'volume_down' }}"
+            sequence:
+              - action: media_player.volume_down
+                target:
+                  entity_id: "{{ volume_target }}"
+          - conditions: "{{ button == 'volume_mute' }}"
+            sequence:
+              - action: media_player.volume_mute
+                target:
+                  entity_id: "{{ volume_target }}"
+                data:
+                  is_volume_muted: "{{ not is_state_attr(volume_target, 'is_volume_muted', true) }}"
+
+  # 5. Everything else goes to the remote entity: D-pad, transport, digits, channel / page, colours.
+  - if:
+      - "{{ situation == 'remote_key' }}"
+    then:
+      - action: remote.send_command
+        target:
+          entity_id: "{{ remote_target }}"
+        data:
+          command: "{{ cmd | trim }}"
+
+  # 6. The header: on pick-up (room name and volume), and the volume line again after every volume key. After a volume key
+  #    the receiver needs a moment to report its new level; the wait stays well inside the remote's ~0.5 s listening window.
+  - if:
+      - "{{ (situation == 'wake' and show_header) or (situation in ['volume', 'volume_release'] and show_volume and volume_target != '') }}"
+    then:
+      - delay:
+          milliseconds: "{{ 0 if situation == 'wake' else volume_settle_ms }}"
+      - variables:
+          vol_state: "{{ states(volume_target) if volume_target != '' else '' }}"
+          vol_muted: "{{ is_state_attr(volume_target, 'is_volume_muted', true) if volume_target != '' else false }}"
+          vol_pct: >-
+            {{ [[((state_attr(volume_target, 'volume_level') | float(0)) * 100) | round(0) | int, 0] | max, 100] | min if volume_target != '' else 0 }}
+          vol_line: >-
+            {% if volume_target == '' or not show_volume %}{{ header_line2 }}
+            {%- elif vol_state in ['off', 'unavailable', 'unknown', 'standby'] %}Vol: device off
+            {%- elif vol_muted %}Muted
+            {%- elif volume_style == 'number' %}Vol {{ vol_pct }}%
+            {%- elif volume_style == 'bar' %}{{ '+' * (vol_pct // 5) }}{{ '-' * (20 - vol_pct // 5) }}
+            {%- else %}Vol {{ vol_pct }} {{ '+' * (vol_pct // 10) }}{{ '-' * (10 - vol_pct // 10) }}
+            {%- endif %}
+      - action: zha.issue_zigbee_cluster_command
+        continue_on_error: true
+        data:
+          ieee: "{{ remote_ieee }}"
+          endpoint_id: 1
+          cluster_id: 64583
+          cluster_type: in
+          command: 3
+          command_type: server
+          params:
+            room: "{{ header_room }}"
+            line2: "{{ vol_line | trim }}"

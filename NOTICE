@@ -1,0 +1,21 @@
+C4-SR260-to-HomeAssistant
+
+Original contributions are attributed to masterdownload and offered under
+Apache-2.0 only to the extent the contributors are authorized to license them.
+
+The 15 quirk modules derive from pvanbaren/zha-device-handlers, control4 branch,
+commit 5c04d09852916d60137681c695af4245a88337ba, itself a fork of
+zigpy/zha-device-handlers, licensed under Apache-2.0.
+
+The BUTTON_7 / BUTTON_8 compatibility fallback in c4_helpers.py is credited to
+defjam903/control4-zha-quirk-fixes, whose README at commit
+44a386bcd61acc2f06cbd88dbce6126705d20d20 explicitly declares:
+"Same as upstream (Apache-2.0)."
+
+This is a project attribution notice, not a claim that upstream supplied a
+NOTICE file. See docs/attribution.md for sources and modifications, and
+docs/third-party/zha-device-handlers-LICENSE-Apache-2.0.txt for the upstream
+license. Applicable upstream rights and notices are retained.
+
+Independent community project, not affiliated with or endorsed by Control4,
+Snap One, Home Assistant or SONOFF. All trademarks belong to their owners.

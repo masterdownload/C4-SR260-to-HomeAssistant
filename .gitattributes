@@ -1,0 +1,7 @@
+# SR-260 files are copied to a Linux Home Assistant host: keep LF line endings in every checkout, on every OS.
+* text=auto eol=lf
+*.py text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.sha256 text eol=lf
