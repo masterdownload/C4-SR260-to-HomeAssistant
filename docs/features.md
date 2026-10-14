@@ -28,6 +28,8 @@ every held key repeats at a fixed 100 ms interval.
   toggle. Other supported domains follow the blueprint's implementation.
 - Room Off, I / II / III, Prev and DVR can each run a target. Leave empty inputs
   empty to ignore those actions.
+  Room Off is always visible directly below Header, line 2; the other shortcut
+  keys remain in the collapsed Other keys section.
 - Labels must be unique and short; Watch, Listen and Room titles must differ.
   Selections are matched using menu title/index. Avoid duplicate room entities.
 - Room actions are silent by default. The optional feedback setting shows a

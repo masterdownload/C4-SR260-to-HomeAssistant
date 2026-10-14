@@ -1,6 +1,6 @@
 # Blueprint reference: Control4 SR-260 Room Remote v0.1 (menus, room controls, full remote, clock, volume)
 
-> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `98067e9d684c`). No tools or tests need to be run to install the blueprint.
+> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `1169b8d88da3`). No tools or tests need to be run to install the blueprint.
 
 Requires Home Assistant 2025.9.0 or newer. Run mode: `parallel` (up to 10 runs at once; extra runs are dropped silently).
 
@@ -26,6 +26,7 @@ Every trigger is a `zha_event` from the chosen remote.
 | `remote` | SR-260 remote | *required* | device (ZHA, Control4 C4-SR260) | The Control4 SR-260 in this room. |
 | `wake_text` | Header, line 1 (room name) | *(empty)* | text | The room name shown on the remote's screen whenever it is picked up (the status bar with the clock and battery stays visible). Templates are allowed. Leave blank to use the remote's area name in Home Assistant. |
 | `header_line2` | Header, line 2 | *(empty)* | text | Optional second line under the room name, e.g. {{ states('sensor.room_temperature') }} F. It is replaced by the volume while a volume target is set (see "TV / streamer control"). |
+| `room_off_target` | Room Off key | *(empty)* | entity (scene, script, automation) |   |
 | `show_header` | Show the header when the remote is picked up | on | on / off | Off leaves the screen as it is. The clock and text colour below are still sent. |
 
 ## Screen look and clock (`screen_section`)
@@ -74,7 +75,6 @@ Each key runs the scene, script or automation you pick. Leave empty to ignore th
 
 | Input | Name | Default | Type | What it does |
 |---|---|---|---|---|
-| `room_off_target` | Room Off key | *(empty)* | entity (scene, script, automation) |   |
 | `i_target` | I key | *(empty)* | entity (scene, script, automation) |   |
 | `ii_target` | II key | *(empty)* | entity (scene, script, automation) |   |
 | `iii_target` | III key | *(empty)* | entity (scene, script, automation) |   |

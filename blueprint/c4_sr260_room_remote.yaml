@@ -43,6 +43,15 @@ blueprint:
       default: ""
       selector:
         text:
+    room_off_target:
+      name: Room Off key
+      default: ""
+      selector:
+        entity:
+          domain:
+            - scene
+            - script
+            - automation
     show_header:
       name: Show the header when the remote is picked up
       description: Off leaves the screen as it is. The clock and text colour below are still sent.
@@ -225,15 +234,6 @@ blueprint:
       description: Each key runs the scene, script or automation you pick. Leave empty to ignore the key.
       collapsed: true
       input:
-        room_off_target:
-          name: Room Off key
-          default: ""
-          selector:
-            entity:
-              domain:
-                - scene
-                - script
-                - automation
         i_target:
           name: I key
           default: ""
