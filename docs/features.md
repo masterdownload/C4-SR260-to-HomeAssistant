@@ -52,6 +52,31 @@ It uses the media player's reported state; a sleeping/off target or delayed
 state reporting can limit the result. The text bar is not the native Control4
 bottom-of-screen volume overlay.
 
+In **TV / streamer control > Volume display**, four additional ASCII styles
+show a ten-position indicator followed by the percentage:
+
+| Style | At 9% |
+|---|---|
+| Hash | `[#---------] 9%` |
+| Equals | `[=.........] 9%` |
+| Star | `[*---------] 9%` |
+| Marker | `[>.........] 9%` |
+
+Positions round to the nearest 10% of the displayed percentage. Filled bars
+are empty at 0% and full at 100%. Marker shows one position instead of filling:
+all dots at 0%, the first position at 9%, and the last position at 100%.
+Existing Number and bar, Bar only and Number only styles are unchanged;
+Number and bar remains the default.
+
+**Volume percentage precision** defaults to whole percentages. Choose
+**One decimal** to show values such as `35.5%`, `35.0%`, `0.0%` and `100.0%`
+where a style includes a number. Bar only remains a bar without a number.
+The percentage comes from the media player's normalized volume, clamped to
+0-100%; it is not a receiver-scale value or dB, and does not change volume steps.
+It is not a promise that a receiver's half-step corresponds to half a percent.
+Fractional reporting and the new glyphs have not been physically confirmed.
+The volume displays fit within 22 ASCII characters, including 100.0%.
+
 ## Display and timing
 
 The remote sleeps; commands generally need to be sent immediately after it

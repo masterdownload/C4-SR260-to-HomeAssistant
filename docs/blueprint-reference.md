@@ -1,6 +1,6 @@
 # Blueprint reference: Control4 SR-260 Room Remote v0.1 (menus, room controls, full remote, clock, volume)
 
-> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `1169b8d88da3`). No tools or tests need to be run to install the blueprint.
+> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `91908f7efa0a`). No tools or tests need to be run to install the blueprint.
 
 Requires Home Assistant 2025.9.0 or newer. Run mode: `parallel` (up to 10 runs at once; extra runs are dropped silently).
 
@@ -90,7 +90,8 @@ Where the navigation, transport, digit and volume keys are sent. Leave empty to 
 | `remote_target` | Remote entity | *(empty)* | entity (remote) | A `remote` entity (Roku, Android TV, Apple TV, Harmony ...). Receives D-pad, transport, digit, channel and colour keys. |
 | `volume_target` | Volume target | *(empty)* | entity (media_player) | The media player controlled by Vol + / Vol - / Mute. |
 | `show_volume` | Show the volume on the remote's screen | on | on / off | The volume of the target above is shown on the second line of the header: when the remote is picked up, and again after every Vol + / Vol - / Mute. A device that is off shows "Vol: device off". |
-| `volume_style` | Volume display | `number_bar` | select | How the level is drawn on the header's second line. |
+| `volume_style` | Volume display | `number_bar` | select | How the level is drawn on the header's second line. Hash, Equals, Star and Marker use 10 positions, rounded to the nearest 10% of the displayed level. Marker shows one position, not a filled bar. |
+| `volume_precision` | Volume percentage precision | `whole` | select | Whole percentages keep the existing display. One decimal uses the fractional percentage reported by the media player, not receiver-scale units or dB. This changes the display only, not volume steps. |
 | `volume_settle_ms` | Wait for the receiver (ms) | `300` | number | After a volume key, how long to wait for the receiver to report its new level before the screen is updated. The remote can only receive for about half a second after a key event, so keep this below 450. |
 
 ## Key command names (default = Roku) (`commands_section`)

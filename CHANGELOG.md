@@ -4,6 +4,9 @@
 
 Experimental initial standalone package, not a stable release.
 
+- Added Hash, Equals, Star and Marker volume styles with ten-position ASCII
+  indicators, plus optional one-decimal percentages. Existing styles/defaults
+  and volume steps are unchanged; no quirk update is needed.
 - Room Off configuration is always visible below Header, line 2 instead of
   inside the collapsed Other keys section. Existing inputs and behavior are unchanged.
 - Room blueprint: Watch/Listen menus, Room controls, shortcut keys, TV/streamer

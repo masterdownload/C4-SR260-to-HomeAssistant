@@ -98,6 +98,10 @@ per remote. Select the remote, then the entities you want to control.
 Keep menu names short and unique. Roku command names are defaults; other
 remote integrations may need different names.
 
+Under **TV / streamer control**, choose **Volume display** for the optional
+Hash, Equals, Star or Marker styles. **Volume percentage precision** can show
+one decimal; its default is whole percentages. Existing choices stay unchanged.
+
 Test one harmless action while present. Check the remote, target device and
 automation trace. The full new blueprint behavior is not physically verified
 by the package's development checks.

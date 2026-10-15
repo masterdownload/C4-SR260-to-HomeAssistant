@@ -310,7 +310,9 @@ blueprint:
             boolean:
         volume_style:
           name: Volume display
-          description: How the level is drawn on the header's second line.
+          description: >-
+            How the level is drawn on the header's second line. Hash, Equals, Star and Marker use 10 positions,
+            rounded to the nearest 10% of the displayed level. Marker shows one position, not a filled bar.
           default: number_bar
           selector:
             select:
@@ -321,6 +323,27 @@ blueprint:
                   value: bar
                 - label: "Number only (Vol 45%)"
                   value: number
+                - label: "Hash ([#---------] 9%)"
+                  value: hash
+                - label: "Equals ([=.........] 9%)"
+                  value: equals
+                - label: "Star ([*---------] 9%)"
+                  value: star
+                - label: "Marker ([>.........] 9%)"
+                  value: marker
+        volume_precision:
+          name: Volume percentage precision
+          description: >-
+            Whole percentages keep the existing display. One decimal uses the fractional percentage reported by the media player,
+            not receiver-scale units or dB. This changes the display only, not volume steps.
+          default: whole
+          selector:
+            select:
+              options:
+                - label: "Whole percentage (35%)"
+                  value: whole
+                - label: "One decimal (35.5%)"
+                  value: decimal
         volume_settle_ms:
           name: Wait for the receiver (ms)
           description: >-
@@ -570,6 +593,7 @@ variables:
   text_color: !input text_color
   text_brightness: !input text_brightness
   volume_style: !input volume_style
+  volume_precision: !input volume_precision
   volume_settle_ms: !input volume_settle_ms
   # Line 1 of the header: the blueprint's text, else the remote's area in Home Assistant, else its device name.
   header_room: >-
@@ -1031,13 +1055,26 @@ actions:
           vol_muted: "{{ is_state_attr(volume_target, 'is_volume_muted', true) if volume_target != '' else false }}"
           vol_pct: >-
             {{ [[((state_attr(volume_target, 'volume_level') | float(0)) * 100) | round(0) | int, 0] | max, 100] | min if volume_target != '' else 0 }}
+          vol_number: >-
+            {% if volume_precision == 'decimal' %}
+              {% set pct = [[0, (state_attr(volume_target, 'volume_level') | float(0)) * 100] | max, 100] | min %}
+              {{ '%.1f' | format(pct) }}
+            {% else %}{{ vol_pct }}{% endif %}
           vol_line: >-
             {% if volume_target == '' or not show_volume %}{{ header_line2 }}
             {%- elif vol_state in ['off', 'unavailable', 'unknown', 'standby'] %}Vol: device off
             {%- elif vol_muted %}Muted
-            {%- elif volume_style == 'number' %}Vol {{ vol_pct }}%
+            {%- elif volume_style == 'number' %}Vol {{ vol_number }}%
             {%- elif volume_style == 'bar' %}{{ '+' * (vol_pct // 5) }}{{ '-' * (20 - vol_pct // 5) }}
-            {%- else %}Vol {{ vol_pct }} {{ '+' * (vol_pct // 10) }}{{ '-' * (10 - vol_pct // 10) }}
+            {%- elif volume_style in ['hash', 'equals', 'star', 'marker'] %}
+              {%- set segments = (((vol_number | float(0)) + 5) / 10) | int %}
+              {%- if volume_style == 'marker' %}
+                [{{ ('.' * (segments - 1)) ~ '>' ~ ('.' * (10 - segments)) if segments > 0 else '.' * 10 }}] {{ vol_number }}%
+              {%- else %}
+                {%- set fill = {'hash': '#', 'equals': '=', 'star': '*'}[volume_style] %}
+                [{{ fill * segments }}{{ ('.' if volume_style == 'equals' else '-') * (10 - segments) }}] {{ vol_number }}%
+              {%- endif %}
+            {%- else %}Vol {{ vol_number }} {{ '+' * (vol_pct // 10) }}{{ '-' * (10 - vol_pct // 10) }}
             {%- endif %}
       - action: zha.issue_zigbee_cluster_command
         continue_on_error: true
