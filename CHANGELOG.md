@@ -4,6 +4,10 @@
 
 Experimental initial standalone package, not a stable release.
 
+- Fixed thermostat range menus: independent Heat/Cool targets, clear measured
+  temperature and marked supported modes; safe limits, fractional/negative
+  steps and stale-selection handling. Single-target controls remain available.
+  Blueprint-only change; quirk files are unchanged.
 - Added Hash, Equals, Star and Marker volume styles with ten-position ASCII
   indicators, plus optional one-decimal percentages. Existing styles/defaults
   and volume steps are unchanged; no quirk update is needed.

@@ -17,6 +17,8 @@ label or manifest comparison as proof of physical behavior.
 | TV key does nothing | Verify the target `remote` entity and its integration-specific command names; Roku defaults are not universal |
 | Screen misses an update | The radio sleeps; test immediately after a remote event, not an arbitrary delayed push; reduce avoidable delays |
 | Wrong menu opens or selection runs wrong row | Use distinct menu titles and unique short row labels; compare saved inputs and automation trace |
+| Thermostat only shows read-only targets | Confirm the entity reports valid targets, minimum/maximum and a positive temperature step, and is not off/unavailable; supported mode choices can turn an off thermostat back on |
+| Thermostat displays H/C but does not seem to heat or cool | H/C is the configured Heat/Cool mode, not active HVAC action; the package does not invent missing active-heating/cooling status |
 | Chosen Room row remains on screen | Check that blueprint and all quirks match v0.1 and `room_feedback` is off; the silent-choice implementation still needs physical confirmation |
 | No battery/LQI/RSSI value | Battery sensing is not implemented; diagnostic values can remain empty and are not by themselves proof the remote is offline |
 | `quirk_applied: false` despite working events | That flag was misleading in the reported setup; inspect actual device behavior, class/loading evidence and event flow |

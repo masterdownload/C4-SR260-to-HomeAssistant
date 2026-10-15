@@ -10,7 +10,7 @@ blueprint:
     One automation per SR-260 remote (one per room). The remote's screen and keys become a room controller:
 
     * **Watch** and **Listen** keys open menus on the remote's screen. Add as many rows as you like; each row runs a **scene, script or automation**.
-    * **List** key opens a **Room** menu: lights (on/off and dim), switches, fans, thermostats (warmer / cooler / mode), blinds, plus scenes, scripts and automations. **Cancel** steps back one level. Room actions are silent by default.
+    * **List** key opens a **Room** menu: lights (on/off and dim), switches, fans, thermostats (single target or independent heat/cool targets, measured temperature and mode), blinds, plus scenes, scripts and automations. **Cancel** steps back one level. Room actions are silent by default.
     * Optional scene / automation on **Room Off**, **I / II / III**, **Prev** and **DVR**.
     * **Full remote**: D-pad, transport, digits, channel / page and colour keys go to a `remote` entity (the key names of Home Assistant's Roku integration by default). **Vol + / - / Mute** go to a media player.
     * **When the remote is picked up** its screen gets a header (the room name, and the volume as a text bar on the second line), its clock is set, and your text colour and brightness are applied. The volume line is refreshed after every volume key.
@@ -172,7 +172,7 @@ blueprint:
       icon: mdi:lightbulb-group
       description: >-
         Opened by the List key. Switches and fans toggle when chosen. Lights, thermostats and blinds open a small menu
-        (Cancel goes back). Scenes, scripts and automations run.
+        (Cancel goes back). Thermostats show measured temperature and supported modes; range targets adjust independently. Scenes, scripts and automations run.
       collapsed: false
       input:
         room_title:
@@ -215,7 +215,7 @@ blueprint:
                         - automation
         show_states:
           name: Show the state after each name
-          description: e.g. "Floor Lamp 60%" or "Ecobee 72 Heat". Keep names short so the state is not cut off.
+          description: e.g. "Floor Lamp 60%" or "Thermostat Now73 H/C". Climate names are shortened to fit the measured temperature and configured mode.
           default: true
           selector:
             boolean:
@@ -651,8 +651,11 @@ variables:
           {% set pct = ((b | float(0)) / 255 * 100) | round(0) | int %}
           {% set sfx = (' ' ~ pct ~ '%') if (s == 'on' and b is not none) else (' On' if s == 'on' else ' Off') %}
         {% elif d == 'climate' %}
-          {% set t = state_attr(e, 'current_temperature') %}
-          {% set sfx = ((' ' ~ (t | float(0) | round(0) | int)) if t is not none else '') ~ ' ' ~ (s | replace('_', ' ') | title) %}
+          {% set t = state_attr(e, 'current_temperature') | float(none) %}
+          {% set measured = ('%g' | format(t | round(1))) if is_number(t) else '--' %}
+          {% set mode = {'heat_cool': 'H/C', 'fan_only': 'Fan'}.get(s, s | title) %}
+          {% set sfx = ' Now' ~ measured ~ ' ' ~ mode %}
+          {% set nm = nm[:([22 - (sfx | length), 0] | max)] %}
         {% elif d in ['cover', 'valve'] %}
           {% set sfx = ' ' ~ (s | title) %}
         {% else %}
@@ -755,32 +758,93 @@ variables:
   # Blinds: do they accept a position (feature bit 4)?
   pick_pos: >-
     {{ pick_domain == 'cover' and ((state_attr(pick_entity, 'supported_features') | int(0)) // 4) % 2 == 1 }}
-  # Thermostat set-points and limits.
+  # Thermostat rows carry their selected set-point so repeated presses can outpace state reporting.
   pick_temp: "{{ (state_attr(pick_entity, 'temperature') | float(none)) if pick_domain == 'climate' else none }}"
   pick_low: "{{ (state_attr(pick_entity, 'target_temp_low') | float(none)) if pick_domain == 'climate' else none }}"
   pick_high: "{{ (state_attr(pick_entity, 'target_temp_high') | float(none)) if pick_domain == 'climate' else none }}"
-  pick_step: "{{ (state_attr(pick_entity, 'target_temp_step') | float(1)) if pick_domain == 'climate' else 1 }}"
-  pick_min: "{{ (state_attr(pick_entity, 'min_temp') | float(0)) if pick_domain == 'climate' else 0 }}"
-  pick_max: "{{ (state_attr(pick_entity, 'max_temp') | float(1000)) if pick_domain == 'climate' else 1000 }}"
+  pick_step: "{{ (state_attr(pick_entity, 'target_temp_step') | float(none)) if pick_domain == 'climate' else none }}"
+  pick_min: "{{ (state_attr(pick_entity, 'min_temp') | float(none)) if pick_domain == 'climate' else none }}"
+  pick_max: "{{ (state_attr(pick_entity, 'max_temp') | float(none)) if pick_domain == 'climate' else none }}"
   # `lower` (not `string`) so enum members such as HVACMode.HEAT become plain text.
   pick_modes: >-
     {{ ((state_attr(pick_entity, 'hvac_modes') or []) | map('lower') | list) if pick_domain == 'climate' else [] }}
-  # Thermostat Warmer / Cooler arithmetic. The sub-menu shows "Warmer (set 72)"; that number is the base for the
-  # next press, so quick repeated presses add up even when the thermostat reports its new set-point late.
-  c_base: >-
-    {% set m = ((sel_item | string) | regex_findall('set ([0-9]+[.]?[0-9]*)')) if pick_domain == 'climate' else [] %}
-    {{ (m[0] | float(none)) if m else (pick_temp if pick_domain == 'climate' else none) }}
-  c_dir: "{{ 1 if sel_index == 0 else -1 }}"
-  c_dual: "{{ pick_domain == 'climate' and pick_temp is none and pick_low is not none and pick_high is not none }}"
-  c_new: >-
-    {% if pick_domain == 'climate' and not c_dual and c_base is not none %}
-      {{ ([([c_base + c_dir * pick_step, pick_max] | min), pick_min] | max) | round(1) }}
-    {% else %}
-      {{ none }}
+  c_mode_labels:
+    heat_cool: Heat/Cool
+    heat: Heat
+    cool: Cool
+    off: Off
+    auto: Auto
+    dry: Dry
+    fan_only: Fan Only
+  c_dual: "{{ pick_domain == 'climate' and (pick_state == 'heat_cool' or (pick_state in ['auto', 'off'] and pick_temp is none and (pick_low is not none or pick_high is not none))) }}"
+  c_available: "{{ pick_domain == 'climate' and pick_state not in ['', 'unknown', 'unavailable'] and pick_state in pick_modes }}"
+  c_limits: "{{ is_number(pick_min) and is_number(pick_max) and pick_min <= pick_max and is_number(pick_step) and pick_step > 0 }}"
+  c_ready: >-
+    {{ c_available and pick_state != 'off' and c_limits and
+       ((c_dual and is_number(pick_low) and is_number(pick_high) and pick_min <= pick_low <= pick_high <= pick_max) or
+        (not c_dual and is_number(pick_temp) and pick_min <= pick_temp <= pick_max)) }}
+  c_rows: >-
+    {% set ns = namespace(rows=[]) %}
+    {% if pick_domain == 'climate' %}
+      {% if c_dual %}
+        {% for kind, value in [('Heat', pick_low), ('Cool', pick_high)] %}
+          {% set t = ('%g' | format(value | round(3))) if is_number(value) else '--' %}
+          {% if c_ready %}
+            {% for sign in ['+', '-'] %}
+              {% set ns.rows = ns.rows + [{'label': kind ~ ' ' ~ t ~ ' ' ~ sign, 'kind': kind | lower, 'sign': sign}] %}
+            {% endfor %}
+          {% else %}
+            {% set ns.rows = ns.rows + [{'label': kind ~ ' ' ~ t, 'kind': 'status'}] %}
+          {% endif %}
+        {% endfor %}
+      {% elif c_ready %}
+        {% set t = '%g' | format(pick_temp | round(3)) %}
+        {% for kind in ['Warmer', 'Cooler'] %}
+          {% set ns.rows = ns.rows + [{'label': kind ~ ' (set ' ~ t ~ ')', 'kind': kind | lower}] %}
+        {% endfor %}
+      {% else %}
+        {% set t = ('%g' | format(pick_temp | round(3))) if is_number(pick_temp) else '--' %}
+        {% set ns.rows = ns.rows + [{'label': 'Set ' ~ t, 'kind': 'status'}] %}
+      {% endif %}
+      {% set current = state_attr(pick_entity, 'current_temperature') | float(none) %}
+      {% set measured = ('%g' | format(current | round(1))) if is_number(current) else '--' %}
+      {% set ns.rows = ns.rows + [{'label': 'Now ' ~ measured, 'kind': 'status'}] %}
+      {% if c_available %}
+        {% for mode in pick_modes %}
+          {% set label = c_mode_labels.get(mode, mode | replace('_', ' ') | title) %}
+          {% set ns.rows = ns.rows + [{'label': ('* ' if mode == pick_state else '') ~ label, 'kind': 'mode', 'mode': mode}] %}
+        {% endfor %}
+      {% else %}
+        {% set ns.rows = ns.rows + [{'label': 'Unavailable', 'kind': 'status'}] %}
+      {% endif %}
     {% endif %}
-  c_low: "{{ (([pick_low + c_dir * pick_step, pick_min] | max) | round(1)) if c_dual else none }}"
-  c_high: "{{ (([pick_high + c_dir * pick_step, pick_max] | min) | round(1)) if c_dual else none }}"
-  c_ok: "{{ pick_domain == 'climate' and sel_index in [0, 1] and (c_new is not none or c_dual) }}"
+    {{ ns.rows }}
+  c_selected: "{{ c_rows[sel_index] if (pick_domain == 'climate' and pick_sub and trigger.id == 'menu' and 0 <= sel_index < (c_rows | length)) else {} }}"
+  c_match: >-
+    {% set kind = c_selected.get('kind', '') %}
+    {% set patterns = {
+      'heat': '^Heat (-?[0-9]+(?:[.][0-9]+)?) ' ~ ('[+]' if c_selected.get('sign') == '+' else '-') ~ '$',
+      'cool': '^Cool (-?[0-9]+(?:[.][0-9]+)?) ' ~ ('[+]' if c_selected.get('sign') == '+' else '-') ~ '$',
+      'warmer': '^Warmer [(]set (-?[0-9]+(?:[.][0-9]+)?)[)]$',
+      'cooler': '^Cooler [(]set (-?[0-9]+(?:[.][0-9]+)?)[)]$'
+    } %}
+    {{ (sel_item | string | regex_findall(patterns[kind])) if kind in patterns else [] }}
+  c_base: >-
+    {{ (c_match[0] | float(none)) if c_match else none }}
+  c_dir: "{{ 1 if (c_selected.get('sign') == '+' or c_selected.get('kind') == 'warmer') else -1 }}"
+  c_new: >-
+    {% if c_ready and is_number(c_base) and pick_min <= c_base <= pick_max %}
+      {% set floor = pick_low if c_selected.get('kind') == 'cool' else pick_min %}
+      {% set ceiling = pick_high if c_selected.get('kind') == 'heat' else pick_max %}
+      {{ [[(c_base + c_dir * pick_step) | round(3), floor] | max, ceiling] | min }}
+    {% else %}{{ none }}{% endif %}
+  c_low: "{{ c_new if (c_dual and c_selected.get('kind') == 'heat' and c_new is not none) else pick_low }}"
+  c_high: "{{ c_new if (c_dual and c_selected.get('kind') == 'cool' and c_new is not none) else pick_high }}"
+  c_ok: "{{ c_new is not none }}"
+  c_mode: >-
+    {% set mode = c_selected.get('mode', '') %}
+    {% set label = c_mode_labels.get(mode, mode | replace('_', ' ') | title) %}
+    {{ mode if (c_available and mode in pick_modes and (sel_item | string) in [label, '* ' ~ label]) else '' }}
   # What this event means.
   situation: >-
     {% set ns = namespace(s='none') %}
@@ -828,8 +892,7 @@ variables:
     {%- elif situation == 'run_listen' %}{{ listen_list[sel_index].label }}
     {%- elif situation == 'room_run' %}{{ pick_label }}
     {%- endif %}
-  # Items of a Room row's own sub-menu (light: on/off + dim steps, blinds: open / close / stop, thermostat: warmer /
-  # cooler / modes).
+  # Room sub-menus: climate rows include targets, measured temperature and supported modes.
   sub_items: >-
     {% set ns = namespace(v=[]) %}
     {% if pick_domain == 'light' %}
@@ -837,11 +900,17 @@ variables:
     {% elif pick_domain == 'cover' %}
       {% set ns.v = ['Open', 'Close', 'Stop'] + (['25%', '50%', '75%'] if pick_pos else []) %}
     {% elif pick_domain == 'climate' %}
-      {% set shown = c_new if (situation == 'room_sub' and c_ok and c_new is not none) else pick_temp %}
-      {% set t = (shown | float | round(1) | string) if shown is not none else '' %}
-      {% set t = t[:-2] if t.endswith('.0') else t %}
-      {% set tag = (' (set ' ~ t ~ ')') if t != '' else '' %}
-      {% set ns.v = ['Warmer' ~ tag, 'Cooler' ~ tag] + (pick_modes | map('replace', '_', ' ') | map('title') | list) %}
+      {% for row in c_rows %}
+        {% set label = row.label %}
+        {% if c_ok and row.kind in ['heat', 'cool', 'warmer', 'cooler'] %}
+          {% set value = (c_low if row.kind == 'heat' else c_high) if c_dual else c_new %}
+          {% set t = '%g' | format(value | round(3)) %}
+          {% set label = ((row.kind | title) ~ ' ' ~ t ~ ' ' ~ row.sign) if c_dual else ((row.kind | title) ~ ' (set ' ~ t ~ ')') %}
+        {% elif c_mode != '' and row.kind == 'mode' %}
+          {% set label = ('* ' if row.mode == c_mode else '') ~ c_mode_labels.get(row.mode, row.mode | replace('_', ' ') | title) %}
+        {% endif %}
+        {% set ns.v = ns.v + [label] %}
+      {% endfor %}
     {% endif %}
     {{ ns.v }}
   # The service to call.
@@ -857,7 +926,7 @@ variables:
       {% elif pick_domain == 'cover' %}
         {{ 'cover.open_cover' if it == 'Open' else ('cover.close_cover' if it == 'Close' else ('cover.stop_cover' if it == 'Stop' else 'cover.set_cover_position')) }}
       {% elif pick_domain == 'climate' %}
-        {% if sel_index in [0, 1] %}{{ 'climate.set_temperature' if c_ok else '' }}{% else %}climate.set_hvac_mode{% endif %}
+        {{ 'climate.set_temperature' if c_ok else ('climate.set_hvac_mode' if c_mode != '' else '') }}
       {% endif %}
     {% endif %}
   svc_entity: "{{ run_entity if run_entity != '' else pick_entity }}"
@@ -868,10 +937,10 @@ variables:
         {{ {'brightness_pct': (it | replace('%', '') | int(0))} }}
       {% elif pick_domain == 'cover' and it.endswith('%') %}
         {{ {'position': (it | replace('%', '') | int(0))} }}
-      {% elif pick_domain == 'climate' and sel_index in [0, 1] and c_ok %}
+      {% elif pick_domain == 'climate' and c_ok %}
         {% if c_dual %}{{ {'target_temp_low': c_low, 'target_temp_high': c_high} }}{% else %}{{ {'temperature': c_new} }}{% endif %}
-      {% elif pick_domain == 'climate' and sel_index >= 2 %}
-        {{ {'hvac_mode': (it | lower | replace(' ', '_'))} }}
+      {% elif pick_domain == 'climate' and c_mode != '' %}
+        {{ {'hvac_mode': c_mode} }}
       {% else %}
         {{ {} }}
       {% endif %}
@@ -897,7 +966,7 @@ variables:
         {% else %}{{ pick_label }} {{ it }}
         {% endif %}
       {% elif pick_domain == 'climate' %}
-        {% if sel_index in [0, 1] %}{% if not c_ok %}{{ pick_label }}: no set-point{% endif %}{% else %}{{ pick_label }}: {{ it }}{% endif %}
+        {% if not c_ok and c_mode == '' %}{{ pick_label }}: no change{% elif c_mode != '' %}{{ pick_label }}: {{ c_mode_labels.get(c_mode, c_mode) }}{% endif %}
       {% endif %}
     {% endif %}
   # A one-line message for the screen. Watch / Listen rows always confirm; Room actions only when "room_feedback" is on.
@@ -913,16 +982,16 @@ variables:
     {%- elif situation == 'open_listen' %}{{ listen_title }}
     {%- elif situation in ['open_room', 'room_back'] %}{{ room_title }}
     {%- elif situation == 'room_open_sub' %}{{ pick_label }}
-    {%- elif situation == 'room_sub' and pick_domain == 'climate' and c_ok %}{{ pick_label }}
+    {%- elif situation == 'room_sub' and pick_domain == 'climate' %}{{ pick_label }}
     {%- endif %}
   menu_items: >-
     {% if situation == 'open_watch' %}{{ watch_list | map(attribute='label') | list }}
     {%- elif situation == 'open_listen' %}{{ listen_list | map(attribute='label') | list }}
     {%- elif situation in ['open_room', 'room_back'] %}{{ room_list | map(attribute='text') | list }}
-    {%- elif situation == 'room_open_sub' or (situation == 'room_sub' and pick_domain == 'climate' and c_ok) %}{{ sub_items }}
+    {%- elif situation == 'room_open_sub' or (situation == 'room_sub' and pick_domain == 'climate') %}{{ sub_items }}
     {%- else %}{{ [] }}
     {%- endif %}
-  menu_index: "{{ pick_idx if situation == 'room_back' else (sel_index if situation == 'room_sub' else 0) }}"
+  menu_index: "{{ pick_idx if situation == 'room_back' else ([[sel_index, (sub_items | length) - 1] | min, 0] | max if (situation == 'room_sub' and pick_domain == 'climate') else (sel_index if situation == 'room_sub' else 0)) }}"
   menu_delay_ms: "{{ 500 if situation in ['room_open_sub', 'room_back', 'room_sub'] else 0 }}"
   # Watch / Listen rows are sources: the quirk then writes the chosen row into the header. Room rows are actions: it must not.
   menu_show_selection: "{{ 1 if situation in ['open_watch', 'open_listen'] else 0 }}"

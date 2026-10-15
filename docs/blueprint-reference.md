@@ -1,6 +1,6 @@
 # Blueprint reference: Control4 SR-260 Room Remote v0.1 (menus, room controls, full remote, clock, volume)
 
-> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `91908f7efa0a`). No tools or tests need to be run to install the blueprint.
+> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `c423eec7b59b`). No tools or tests need to be run to install the blueprint.
 
 Requires Home Assistant 2025.9.0 or newer. Run mode: `parallel` (up to 10 runs at once; extra runs are dropped silently).
 
@@ -60,13 +60,13 @@ Opened by the Listen key. Add one row per item.
 
 ## Room controls (List key) (`room_section`)
 
-Opened by the List key. Switches and fans toggle when chosen. Lights, thermostats and blinds open a small menu (Cancel goes back). Scenes, scripts and automations run.
+Opened by the List key. Switches and fans toggle when chosen. Lights, thermostats and blinds open a small menu (Cancel goes back). Thermostats show measured temperature and supported modes; range targets adjust independently. Scenes, scripts and automations run.
 
 | Input | Name | Default | Type | What it does |
 |---|---|---|---|---|
 | `room_title` | Menu title | `Room` | text |   |
 | `room_items` | Items | *(no rows)* | list of rows: `label` = text, `entity` = entity (light, switch, input_boolean, fan, cover, climate, humidifier, valve, media_player, scene, script, automation) | Each row has a name (shown on the remote) and the thing it controls. |
-| `show_states` | Show the state after each name | on | on / off | e.g. "Floor Lamp 60%" or "Ecobee 72 Heat". Keep names short so the state is not cut off. |
+| `show_states` | Show the state after each name | on | on / off | e.g. "Floor Lamp 60%" or "Thermostat Now73 H/C". Climate names are shortened to fit the measured temperature and configured mode. |
 | `room_feedback` | Show a result message after a Room action | off | on / off | Off (default): the remote stays quiet and you see the light, fan or thermostat change. On: the screen also shows a short message such as "Floor Lamp: On", or "Running: Movie" for a scene. |
 
 ## Other keys (scene, script or automation) (`keys_section`)

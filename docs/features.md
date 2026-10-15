@@ -24,7 +24,7 @@ every held key repeats at a fixed 100 ms interval.
 
 - Watch and Listen open menus of scenes, scripts or automations.
 - List opens Room controls. Lights can offer on/off and dim levels, thermostats
-  warmer/cooler/mode choices, and covers open/close/stop. Switches and fans can
+  temperature/mode choices, and covers open/close/stop. Switches and fans can
   toggle. Other supported domains follow the blueprint's implementation.
 - Room Off, I / II / III, Prev and DVR can each run a target. Leave empty inputs
   empty to ignore those actions.
@@ -37,6 +37,44 @@ every held key repeats at a fixed 100 ms interval.
 
 Every input and supported selector domain is listed in the
 [blueprint reference](blueprint-reference.md).
+
+### Thermostats
+
+The Room row shows **measured temperature and configured mode**, for example
+`Thermostat Now73 H/C`. `H/C` means Heat/Cool mode, not that heating or cooling
+is currently running. Long thermostat names are shortened to keep this row
+within 22 characters. No active-heating/cooling status is invented.
+
+For a Heat/Cool thermostat with targets 69 and 76, the submenu contains:
+
+```text
+Heat 69 +
+Heat 69 -
+Cool 76 +
+Cool 76 -
+Now 73
+* Heat/Cool
+Off
+```
+
+Heat changes only the heating target; Cool changes only the cooling target.
+Each uses the reported temperature step, stays within the thermostat's limits,
+and cannot cross the other target. Range service calls include both targets,
+preserving the unselected target's current reported value. Repeated presses
+use the chosen value in the refreshed row so they can accumulate before the
+device reports back. Single-target thermostats keep **Warmer (set N)** and
+**Cooler (set N)** instead.
+
+`Now` is read-only. `*` marks the configured mode; only modes reported as
+supported are offered. An off thermostat keeps targets read-only while allowing
+a supported mode to be selected. Missing/invalid targets, limits or a positive
+step disable temperature adjustments rather than guessing values. Unknown or
+unavailable thermostats cannot be controlled from these menus. Stale or
+unrecognized selections refresh the menu without a thermostat write.
+
+Values use the thermostat's reported temperature units. Refreshed adjustment
+rows show the requested target, not confirmation that the device accepted it.
+This menu revision is offline-checked but still needs physical verification.
 
 ## TV and volume
 

@@ -102,6 +102,10 @@ Under **TV / streamer control**, choose **Volume display** for the optional
 Hash, Equals, Star or Marker styles. **Volume percentage precision** can show
 one decimal; its default is whole percentages. Existing choices stay unchanged.
 
+Thermostat rows show measured temperature and mode. Heat/Cool thermostats have
+separate Heat and Cool `+`/`-` target rows; single-target thermostats keep
+Warmer/Cooler. `*` marks the configured mode. See [thermostat controls](features.md#thermostats).
+
 Test one harmless action while present. Check the remote, target device and
 automation trace. The full new blueprint behavior is not physically verified
 by the package's development checks.
