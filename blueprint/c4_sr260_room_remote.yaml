@@ -711,73 +711,6 @@ blueprint:
             entity:
               domain: [scene, automation]
 
-    digit_actions_section:
-      name: Optional digit-key actions
-      icon: mdi:numeric
-      description: Each selected scene/automation runs once on that digit's short press. Empty keeps the Digits 0-9 command template.
-      collapsed: true
-      input:
-        digit_0_target:
-          name: Digit 0 override
-          default: ""
-          selector:
-            entity:
-              domain: [scene, automation]
-        digit_1_target:
-          name: Digit 1 override
-          default: ""
-          selector:
-            entity:
-              domain: [scene, automation]
-        digit_2_target:
-          name: Digit 2 override
-          default: ""
-          selector:
-            entity:
-              domain: [scene, automation]
-        digit_3_target:
-          name: Digit 3 override
-          default: ""
-          selector:
-            entity:
-              domain: [scene, automation]
-        digit_4_target:
-          name: Digit 4 override
-          default: ""
-          selector:
-            entity:
-              domain: [scene, automation]
-        digit_5_target:
-          name: Digit 5 override
-          default: ""
-          selector:
-            entity:
-              domain: [scene, automation]
-        digit_6_target:
-          name: Digit 6 override
-          default: ""
-          selector:
-            entity:
-              domain: [scene, automation]
-        digit_7_target:
-          name: Digit 7 override
-          default: ""
-          selector:
-            entity:
-              domain: [scene, automation]
-        digit_8_target:
-          name: Digit 8 override
-          default: ""
-          selector:
-            entity:
-              domain: [scene, automation]
-        digit_9_target:
-          name: Digit 9 override
-          default: ""
-          selector:
-            entity:
-              domain: [scene, automation]
-
 mode: parallel
 max: 10
 max_exceeded: silent
@@ -995,16 +928,6 @@ variables:
     blue: !input blue_target
     star: !input star_target
     hash: !input hash_target
-    digit_0: !input digit_0_target
-    digit_1: !input digit_1_target
-    digit_2: !input digit_2_target
-    digit_3: !input digit_3_target
-    digit_4: !input digit_4_target
-    digit_5: !input digit_5_target
-    digit_6: !input digit_6_target
-    digit_7: !input digit_7_target
-    digit_8: !input digit_8_target
-    digit_9: !input digit_9_target
   # Keys that keep repeating while held (the remote re-sends them while held). Everything else acts once per press.
   repeat_keys:
     - up

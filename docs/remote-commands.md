@@ -6,15 +6,15 @@ manual reference; your saved text does not change when this page is updated.
 
 ## Scene or automation instead
 
-Open one of the **Optional navigation/playback/channel-color/digit actions**
+Open one of the **Optional navigation/playback/channel-color actions**
 sections and select a scene or automation for a key. That selection wins over
 its command text and works without a `remote` entity.
 
 - Selected override: runs **once per short press**. Holding does not repeat
   the scene/automation or fall through to its remote command.
 - Empty override: keeps the current command and its existing hold-repeat policy.
-- Digits have individual optional overrides; an empty digit override still
-  uses the existing **Digits 0-9 (template)** field.
+- Digits have no action overrides; they use the existing editable
+  **Digits 0-9 (template)** field.
 - Watch, Listen, List, Room Off, I / II / III, Prev, DVR and volume keep their
   existing dedicated controls. Menu-owned navigation/Select/Cancel stays local.
 - Automation selections use `automation.trigger`, like the existing shortcut

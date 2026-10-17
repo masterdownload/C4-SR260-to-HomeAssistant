@@ -211,6 +211,7 @@ remote integrations may need different names.
 The optional media-key action sections accept a scene/automation instead of
 that key's command. Overrides run once on short press, never while held;
 empty preserves the command, and no remote entity is needed for an override.
+Digits 0-9 use only the editable command template, not action overrides.
 Use the [command reference](remote-commands.md) for integration-specific text.
 
 The native ZHA Battery diagnostic appears after the updated quirks load.

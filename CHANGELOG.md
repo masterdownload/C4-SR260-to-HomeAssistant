@@ -4,8 +4,11 @@
 
 Experimental initial standalone package, not a stable release.
 
-- Optional scene/automation overrides for all configurable media keys and
-  digits, once per short press; empty selections preserve command text and
+- Removed the ten optional digit-action selectors at the owner's request.
+  Digits 0-9 still use the unchanged editable command template. The 28 other
+  overrides remain; only the blueprint needs updating for this reduction.
+- Optional scene/automation overrides for 28 non-digit media keys,
+  once per short press; empty selections preserve command text and
   existing command repeats. Added a manual official-source command reference,
   not platform presets or runtime downloads.
 - Native ZHA Battery diagnostics from valid passive battery-percent reports,

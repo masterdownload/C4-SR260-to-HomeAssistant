@@ -104,8 +104,9 @@ Roku Play and Pause both use `play` (toggle), Skip Back uses `replay`, and
 unmapped keys are ignored. Home Assistant must already control the target;
 this package does not pair an IR device or supply vendor codes.
 
-The four optional media-action sections cover navigation, playback,
-channel/page/color and digit keys. Select a scene or automation to replace a
+The three optional media-action sections cover 28 navigation, playback and
+channel/page/color keys. Digits 0-9 keep the editable command template, without
+scene/automation overrides. Select a scene or automation to replace a non-digit
 key's command on short press, even without a remote entity. Empty keeps the
 existing command. An override runs **once per press**: held events do not
 repeat it or send the underlying command. Existing command-only hold behavior,

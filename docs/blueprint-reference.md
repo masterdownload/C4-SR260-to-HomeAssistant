@@ -1,6 +1,6 @@
 # Blueprint reference: Control4 SR-260 Room Remote v0.1 (menus, room controls, full remote, clock, volume)
 
-> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `98355a4eeb92`). No tools or tests need to be run to install the blueprint.
+> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `10efb6afc5bd`). No tools or tests need to be run to install the blueprint.
 
 Requires Home Assistant 2025.9.0 or newer. Run mode: `parallel` (up to 10 runs at once; extra runs are dropped silently).
 
@@ -178,20 +178,3 @@ Empty preserves the command. A scene/automation override runs once per press and
 | `blue_target` | Blue override | *(empty)* | entity (scene, automation) |   |
 | `star_target` | Star (*) override | *(empty)* | entity (scene, automation) |   |
 | `hash_target` | Hash (#) override | *(empty)* | entity (scene, automation) |   |
-
-## Optional digit-key actions (`digit_actions_section`)
-
-Each selected scene/automation runs once on that digit's short press. Empty keeps the Digits 0-9 command template.
-
-| Input | Name | Default | Type | What it does |
-|---|---|---|---|---|
-| `digit_0_target` | Digit 0 override | *(empty)* | entity (scene, automation) |   |
-| `digit_1_target` | Digit 1 override | *(empty)* | entity (scene, automation) |   |
-| `digit_2_target` | Digit 2 override | *(empty)* | entity (scene, automation) |   |
-| `digit_3_target` | Digit 3 override | *(empty)* | entity (scene, automation) |   |
-| `digit_4_target` | Digit 4 override | *(empty)* | entity (scene, automation) |   |
-| `digit_5_target` | Digit 5 override | *(empty)* | entity (scene, automation) |   |
-| `digit_6_target` | Digit 6 override | *(empty)* | entity (scene, automation) |   |
-| `digit_7_target` | Digit 7 override | *(empty)* | entity (scene, automation) |   |
-| `digit_8_target` | Digit 8 override | *(empty)* | entity (scene, automation) |   |
-| `digit_9_target` | Digit 9 override | *(empty)* | entity (scene, automation) |   |
