@@ -4,6 +4,10 @@
 
 Experimental initial standalone package, not a stable release.
 
+- Added a UI-first guide for ordered multi-command actions, System Bridge and
+  external IR hardware, linked from blueprint help and the README. Clarified
+  automation-condition and script-waiting semantics; runtime, selectors and
+  defaults are unchanged. Help-only blueprint update, not a new deployment.
 - Removed the ten optional digit-action selectors at the owner's request.
   Digits 0-9 still use the unchanged editable command template. The 28 other
   overrides remain; only the blueprint needs updating for this reduction.

@@ -20,6 +20,7 @@ blueprint:
     Keep names short (about 12 characters; the screen shows roughly 17-20 and the state is added after the name). Names must be unique, and the Watch, Listen and Room menu titles must all be different.
     While a menu is open the remote handles Up / Down / Select / Cancel itself.
     Command-name reference (manual lookup only; nothing is downloaded at runtime): https://github.com/masterdownload/C4-SR260-to-HomeAssistant/blob/main/docs/remote-commands.md
+    Multi-command sequences, System Bridge and IR setup: https://github.com/masterdownload/C4-SR260-to-HomeAssistant/blob/main/docs/remote-commands.md#multiple-commands-system-bridge-and-ir
   input:
     remote:
       name: SR-260 remote
@@ -524,6 +525,7 @@ blueprint:
         A selected scene or automation replaces that key's command on short press, even without a remote entity.
         It runs once per press; holding does not repeat the action or send the underlying command.
         Empty keeps the command settings. Menu-owned navigation, Select and Cancel stay with the menu.
+        Multi-command/System Bridge/IR guide: https://github.com/masterdownload/C4-SR260-to-HomeAssistant/blob/main/docs/remote-commands.md#multiple-commands-system-bridge-and-ir
       collapsed: true
       input:
         up_target:
@@ -593,6 +595,7 @@ blueprint:
       description: >-
         Scene/automation overrides run once on short press, never repeatedly while held.
         Empty keeps the existing remote-command text. Dedicated Watch, Listen, List, Room Off and volume settings are unchanged.
+        Multi-command/System Bridge/IR guide: https://github.com/masterdownload/C4-SR260-to-HomeAssistant/blob/main/docs/remote-commands.md#multiple-commands-system-bridge-and-ir
       collapsed: true
       input:
         play_target:
@@ -647,7 +650,9 @@ blueprint:
     extra_actions_section:
       name: Optional channel, page and color actions
       icon: mdi:remote
-      description: Empty preserves the command. A scene/automation override runs once per press and suppresses command repeats while held.
+      description: >-
+        Empty preserves the command. A scene/automation override runs once per press and suppresses command repeats while held.
+        Multi-command/System Bridge/IR guide: https://github.com/masterdownload/C4-SR260-to-HomeAssistant/blob/main/docs/remote-commands.md#multiple-commands-system-bridge-and-ir
       collapsed: true
       input:
         page_up_target:

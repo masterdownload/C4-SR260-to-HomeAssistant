@@ -1,6 +1,6 @@
 # Blueprint reference: Control4 SR-260 Room Remote v0.1 (menus, room controls, full remote, clock, volume)
 
-> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `10efb6afc5bd`). No tools or tests need to be run to install the blueprint.
+> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `42acde23e85e`). No tools or tests need to be run to install the blueprint.
 
 Requires Home Assistant 2025.9.0 or newer. Run mode: `parallel` (up to 10 runs at once; extra runs are dropped silently).
 
@@ -132,7 +132,7 @@ The command string sent to the remote entity for each key. The defaults are the 
 
 ## Optional navigation-key actions (`navigation_actions_section`)
 
-A selected scene or automation replaces that key's command on short press, even without a remote entity. It runs once per press; holding does not repeat the action or send the underlying command. Empty keeps the command settings. Menu-owned navigation, Select and Cancel stay with the menu.
+A selected scene or automation replaces that key's command on short press, even without a remote entity. It runs once per press; holding does not repeat the action or send the underlying command. Empty keeps the command settings. Menu-owned navigation, Select and Cancel stay with the menu. Multi-command/System Bridge/IR guide: https://github.com/masterdownload/C4-SR260-to-HomeAssistant/blob/main/docs/remote-commands.md#multiple-commands-system-bridge-and-ir
 
 | Input | Name | Default | Type | What it does |
 |---|---|---|---|---|
@@ -149,7 +149,7 @@ A selected scene or automation replaces that key's command on short press, even 
 
 ## Optional playback-key actions (`playback_actions_section`)
 
-Scene/automation overrides run once on short press, never repeatedly while held. Empty keeps the existing remote-command text. Dedicated Watch, Listen, List, Room Off and volume settings are unchanged.
+Scene/automation overrides run once on short press, never repeatedly while held. Empty keeps the existing remote-command text. Dedicated Watch, Listen, List, Room Off and volume settings are unchanged. Multi-command/System Bridge/IR guide: https://github.com/masterdownload/C4-SR260-to-HomeAssistant/blob/main/docs/remote-commands.md#multiple-commands-system-bridge-and-ir
 
 | Input | Name | Default | Type | What it does |
 |---|---|---|---|---|
@@ -164,7 +164,7 @@ Scene/automation overrides run once on short press, never repeatedly while held.
 
 ## Optional channel, page and color actions (`extra_actions_section`)
 
-Empty preserves the command. A scene/automation override runs once per press and suppresses command repeats while held.
+Empty preserves the command. A scene/automation override runs once per press and suppresses command repeats while held. Multi-command/System Bridge/IR guide: https://github.com/masterdownload/C4-SR260-to-HomeAssistant/blob/main/docs/remote-commands.md#multiple-commands-system-bridge-and-ir
 
 | Input | Name | Default | Type | What it does |
 |---|---|---|---|---|

@@ -76,6 +76,9 @@ For Roku, Apple TV or another target, edit command text using the
 updated automatically. Battery appears under the ZHA device's diagnostics and
 stays unknown until a valid passive report arrives.
 
+For a key that runs several commands, follow the
+[multi-command, System Bridge and IR guide](docs/remote-commands.md#multiple-commands-system-bridge-and-ir).
+
 **Acceptance:** check the model, then actual key events, the List menu and the
 room name after the screen goes dark and you pick the remote up without a key.
 List, Room Off and the wake header were physically confirmed on one replacement
