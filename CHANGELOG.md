@@ -4,6 +4,12 @@
 
 Experimental initial standalone package, not a stable release.
 
+- Dual-target thermostat Heat/Cool rows now open a picker with five reported
+  steps below and five above the target, omitting the current value. Filter
+  unsafe choices without clamping; Cancel returns one level without a write.
+  Entity/layout/snapshot routing rejects stale selections. Single-setpoint
+  controls, media mappings and quirks are unchanged. Blueprint-only update;
+  physical picker acceptance is not yet claimed.
 - Added a UI-first guide for ordered multi-command actions, System Bridge and
   external IR hardware, linked from blueprint help and the README. Clarified
   automation-condition and script-waiting semantics; runtime, selectors and

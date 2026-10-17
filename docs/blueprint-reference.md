@@ -1,6 +1,6 @@
 # Blueprint reference: Control4 SR-260 Room Remote v0.1 (menus, room controls, full remote, clock, volume)
 
-> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `42acde23e85e`). No tools or tests need to be run to install the blueprint.
+> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `489b67c30355`). No tools or tests need to be run to install the blueprint.
 
 Requires Home Assistant 2025.9.0 or newer. Run mode: `parallel` (up to 10 runs at once; extra runs are dropped silently).
 
@@ -60,7 +60,7 @@ Opened by the Listen key. Add one row per item.
 
 ## Room controls (List key) (`room_section`)
 
-Opened by the List key. Switches and fans toggle when chosen. Lights, thermostats and blinds open a small menu (Cancel goes back). Thermostats show measured temperature and supported modes; range targets adjust independently. Scenes, scripts and automations run.
+Opened by the List key. Switches and fans toggle when chosen. Lights, thermostats and blinds open a small menu (Cancel goes back). Thermostats show measured temperature and supported modes. Each range Heat/Cool target opens five step choices below and five above its current value, omitting the current value; limits may leave fewer choices. Single-target Warmer/Cooler controls are unchanged. Scenes, scripts and automations run.
 
 | Input | Name | Default | Type | What it does |
 |---|---|---|---|---|

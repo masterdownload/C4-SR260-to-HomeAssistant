@@ -223,8 +223,13 @@ Hash, Equals, Star or Marker styles. **Volume percentage precision** can show
 one decimal; its default is whole percentages. Existing choices stay unchanged.
 
 Thermostat rows show measured temperature and mode. Heat/Cool thermostats have
-separate Heat and Cool `+`/`-` target rows; single-target thermostats keep
-Warmer/Cooler. `*` marks the configured mode. See [thermostat controls](features.md#thermostats).
+separate Heat and Cool rows that open ten-choice temperature pickers: five
+reported steps below and five above, omitting the current target. Bounds can
+leave fewer choices. Cancel returns one level without applying a temperature.
+Single-target thermostats keep Warmer/Cooler. `*` marks the configured mode.
+See [thermostat controls](features.md#thermostats). For this picker update on an
+existing install, update only the blueprint and reload automations while
+preserving saved inputs; no quirk replacement or restart is required.
 
 Test one harmless action while present. Check the remote, target device and
 automation trace. The full new blueprint behavior is not physically verified

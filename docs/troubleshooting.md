@@ -24,6 +24,8 @@ label or manifest comparison as proof of physical behavior.
 | Wrong menu opens or selection runs wrong row | Use distinct menu titles and unique short row labels; compare saved inputs and automation trace |
 | Thermostat only shows read-only targets | Confirm the entity reports valid targets, minimum/maximum and a positive temperature step, and is not off/unavailable; supported mode choices can turn an off thermostat back on |
 | Thermostat displays H/C but does not seem to heat or cool | H/C is the configured Heat/Cool mode, not active HVAC action; the package does not invent missing active-heating/cooling status |
+| Heat/Cool picker has fewer than ten rows or no valid temperatures | The ten offsets exclude the current value; bounds, the opposite endpoint or unrepresentable values remove choices without clamping, duplication or backfill |
+| A thermostat selection refreshes without changing the target | Its target/mode/step/limits or room layout may have changed. Reopen with List; do not reuse an old picker. Room names must be unique. Routing tags are intentional |
 | Chosen Room row remains on screen | Check that blueprint and all quirks match v0.1 and `room_feedback` is off; the silent-choice implementation still needs physical confirmation |
 | Battery is unknown | The native Battery diagnostic waits for a valid passive `c4.zr.bl` report; no fake initial value or active poll is used. Other status attributes are not substituted |
 | Battery entity is missing | Load all matching updated quirks and fully restart; known SR-260 power classification is corrected so native ZHA can discover it. Check whether the entity was disabled manually |
