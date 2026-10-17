@@ -4,6 +4,11 @@
 
 Experimental initial standalone package, not a stable release.
 
+- Automatic SR-260 identity learning from validated model traffic, with bounded
+  probes and device-lifecycle activation for new or already-paired unknown
+  remotes. Atomic model persistence replaces routine manual cache seeding on
+  supported versions; wake/pairing and an initial quirk-load restart are still
+  required. Physical acceptance pending; the manual method remains a fallback.
 - Fixed thermostat range menus: independent Heat/Cool targets, clear measured
   temperature and marked supported modes; safe limits, fractional/negative
   steps and stale-selection handling. Single-target controls remain available.

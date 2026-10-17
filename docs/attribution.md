@@ -42,12 +42,13 @@ Compared with the pinned pvanbaren source after normalizing CRLF to LF:
 
 | File | Changes |
 |---|---|
-| `c4_helpers.py` | defjam903 button-constant fallback; raw-frame grammar, length checks and sequence construction; prominent source/modification notice |
+| `c4_helpers.py` | defjam903 button-constant fallback; raw-frame grammar, length checks and sequence construction; strict SR-260 identity parsing and serialized atomic cache persistence with unreadable-cache protection; prominent source/modification notice |
+| `c4_hooks.py` | Strict pre-quirk SR-260 discovery, bounded controller-identity/model exchange, safe raw-device lifecycle promotion and ZHA refresh; preserve other-device/report/normal initialization routing; prominent modification notice |
 | `c4_button_cluster.py` | Send/reply/announce/frame/failure diagnostics; bounded probe window; unhandled-frame reporting; silent selection handling; screen announcements; prominent modification notice |
 | `c4_display_cluster.py` | Raw-send command; `show_selection`; header, clock and text-color commands; prominent modification notice |
 
-The other 12 modules are unchanged apart from checkout line-ending
-normalization: `c4_basic_cluster.py`, `c4_hooks.py`, `c4_led_cluster.py`,
+The other 11 modules are unchanged apart from checkout line-ending
+normalization: `c4_basic_cluster.py`, `c4_led_cluster.py`,
 `c4_ramp_cluster.py`, `c4_z2io_zp.py`, `control4_dimmer.py`,
 `control4_fan.py`, `control4_outlet.py`, `control4_remote.py`,
 `control4_scene_controller.py`, `control4_switch.py`, `control4_z2io_zp.py`.

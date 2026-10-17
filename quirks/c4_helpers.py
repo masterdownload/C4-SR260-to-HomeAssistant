@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Modified by masterdownload, 2026-10-14: raw-frame builder and public packaging.
+# Modified by masterdownload, 2026-10-17: raw-frame builder, atomic model storage
+# and strict SR-260 identity parsing; see docs/attribution.md.
 # Includes the Apache-2.0 BUTTON_7/8 compatibility fallback by defjam903.
 # Derived from pvanbaren/zha-device-handlers; see docs/attribution.md.
 """Shared constants, store, helper utilities, and shared clusters for Control4 ZHA quirks.
@@ -16,6 +17,8 @@ import os
 import re
 import struct
 import sys
+import tempfile
+import threading
 
 # Make this directory importable by sibling modules regardless of load order.
 _QUIRK_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -223,13 +226,24 @@ _INVALID_MODELS = {"", "unknown", "unk_model", "none", "None"}
 # IEEE → model persistence store
 # ---------------------------------------------------------------------------
 _C4_STORE_PATH = "/config/.storage/c4_quirk_data.json"
+_C4_STORE_LOCK = threading.RLock()
+_C4_STORE_LOAD_ERROR = False
 
 
 def _load_store() -> dict:
+    global _C4_STORE_LOAD_ERROR
+    _C4_STORE_LOAD_ERROR = False
     try:
         with open(_C4_STORE_PATH) as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+            data = json.load(f)
+        if not isinstance(data, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in data.items()):
+            raise ValueError("expected a flat IEEE-to-model mapping")
+        return data
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError):
+        _C4_STORE_LOAD_ERROR = True
+        _LOGGER.error("C4: cannot read model cache; automatic persistence will not overwrite it", exc_info=True)
         return {}
 
 
@@ -237,10 +251,27 @@ _C4_IEEE_MODEL_MAP: dict[str, str] = _load_store()
 
 
 def _save_store(data: dict) -> None:
-    os.makedirs(os.path.dirname(_C4_STORE_PATH), exist_ok=True)
-    _LOGGER.debug("C4: saving IEEE→model map to %s: %s", _C4_STORE_PATH, data)
-    with open(_C4_STORE_PATH, "w") as f:
-        json.dump(data, f)
+    with _C4_STORE_LOCK:
+        if _C4_STORE_LOAD_ERROR:
+            raise ValueError("refusing to overwrite an unreadable model cache")
+        directory = os.path.dirname(_C4_STORE_PATH)
+        os.makedirs(directory, exist_ok=True)
+        fd, temporary = tempfile.mkstemp(prefix=".c4-model-", dir=directory)
+        try:
+            with os.fdopen(fd, "w") as stream:
+                json.dump(data, stream)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, _C4_STORE_PATH)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+
+
+def _save_latest_model_store() -> None:
+    # Executor jobs can start out of order; take the snapshot inside the lock.
+    with _C4_STORE_LOCK:
+        _save_store(dict(_C4_IEEE_MODEL_MAP))
 
 
 def get_model_from_ieee(key: str) -> str | None:
@@ -248,14 +279,50 @@ def get_model_from_ieee(key: str) -> str | None:
 
 
 def set_model_for_ieee(key: str, value: str) -> None:
-    _C4_IEEE_MODEL_MAP[key] = value
+    with _C4_STORE_LOCK:
+        if _C4_IEEE_MODEL_MAP.get(key) == value:
+            return
+        _C4_IEEE_MODEL_MAP[key] = value
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
         # Called from a sync context with no running loop — save synchronously.
         _save_store(dict(_C4_IEEE_MODEL_MAP))
         return
-    loop.run_in_executor(None, _save_store, dict(_C4_IEEE_MODEL_MAP))
+    future = loop.run_in_executor(None, _save_latest_model_store)
+
+    def saved(result):
+        try:
+            result.result()
+        except (OSError, ValueError):
+            _LOGGER.error("C4: model cache could not be saved; check storage permissions", exc_info=True)
+
+    future.add_done_callback(saved)
+
+
+def _sr260_identity_message(packet):
+    """Parse complete, unwrapped global ZCL traffic on the documented identity endpoint."""
+    if (packet.profile_id, packet.cluster_id, packet.src_ep) != (C4_PROFILE_NETWORK, C4_CLUSTER_ID, 2):
+        return None
+    raw = packet.data.serialize() if hasattr(packet.data, "serialize") else bytes(packet.data)
+    if not raw or len(raw) > 512 or raw[0] & 0xE7:
+        return None
+    try:
+        header, body = foundation.ZCLHeader.deserialize(raw)
+        command = int(header.command_id)
+        if command not in (0, 1, 2, 3, 10):
+            return None
+        if command in (0, 2, 3) and header.frame_control.direction != foundation.Direction.Client_to_Server:
+            return None
+        if command in (1, 10) and header.frame_control.direction != foundation.Direction.Server_to_Client:
+            return None
+        arguments, trailing = foundation.GENERAL_COMMANDS[command].schema.deserialize(body)
+        if trailing:
+            return None
+        return header, arguments
+    except (ValueError, TypeError, KeyError):
+        _LOGGER.debug("C4: ignoring malformed SR-260 discovery frame", exc_info=True)
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -863,7 +930,7 @@ def _sync_ep1_model(device, model: str, source="unknown"):
 # Sniff model string from a ZCL Report Attributes payload
 # ---------------------------------------------------------------------------
 
-def _c4_sniff_model(device, inner: bytes) -> None:
+def _c4_sniff_model(device, inner: bytes, *, sr260_verified=False) -> None:
     """Peek into a ZCL Report Attributes payload for attr 0x0007 (model string).
 
     Called from the broadcast intercept patch before any cluster routing.
@@ -885,6 +952,9 @@ def _c4_sniff_model(device, inner: bytes) -> None:
                 raw = attr.value.value
                 parts = raw.split(":")
                 model = parts[2] if len(parts) >= 3 else raw
+                if model == "C4-SR260" and not sr260_verified:
+                    # SR-260 discovery is validated and activated by c4_hooks.
+                    return
                 if model and model not in _INVALID_MODELS:
                     _LOGGER.debug(
                         "C4 sniffer: caching ieee=%r -> model=%r",

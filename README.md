@@ -38,20 +38,18 @@ If `zha:` already exists, add only the indented line. If it already has a
 custom-quirks path, keep it unchanged.
 
 **3. Pair the remote.** In ZHA, choose **Add device**, then press the remote's
-**C4 button four times**. Copy its eight-byte IEEE address from the device
-information. An unknown model at this stage is expected.
+**C4 button four times**. Keep it awake near the coordinator. It may initially
+show an unknown model while its identity is being learned.
 
-**4. Set the model.** Stop Home Assistant Core before editing
-`/config/.storage/c4_quirk_data.json`, using file access that remains available.
-Add the following, replacing the example address with your remote's IEEE:
+**4. Check recognition.** The device should become **Control4 / C4-SR260**
+automatically after its actual identity exchange. No routine manual cache entry
+or second restart is needed on the supported lifecycle. Listen for `zha_event`
+and press a key to check it. Already paired but unknown? Wake it after the
+quirk update and full restart; deletion/re-pairing is not the first step.
 
-```json
-{"00:0f:ff:00:00:00:00:01": "C4-SR260"}
-```
-
-Preserve any entries already in that file. Start Home Assistant again.
-The device should now show **Control4 / C4-SR260**. More detail:
-[model-cache step](docs/install.md#3-set-the-model).
+Automatic recognition is experimental and needs real device traffic; a sleeping
+remote cannot identify itself. If it stays unknown, follow
+[recognition checks and manual fallback](docs/install.md#3-check-automatic-recognition).
 
 **5. Install the blueprint.** Copy the downloaded YAML to:
 

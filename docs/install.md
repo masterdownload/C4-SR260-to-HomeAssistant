@@ -39,7 +39,8 @@ another stack. Follow the [official ZHA guide](https://www.home-assistant.io/int
 if you have not set it up.
 
 Choose **Add device** in ZHA, keep the remote close, and press **C4 four times**.
-An unknown manufacturer/model initially is expected.
+Keep it awake while it exchanges identity information. An unknown model can
+appear temporarily during the interview.
 
 Copy the device's eight-byte IEEE address from its device information.
 Use that address, not a controller's six-byte MAC.
@@ -48,9 +49,41 @@ C4 four times is the confirmed identification sequence. SR-150/SR-250 reset
 recipes are **unverified for the SR-260**. This package does not provide a
 confirmed factory-reset procedure.
 
-## 3. Set the model
+## 3. Check automatic recognition
 
-The SR-260 needs a manual model-cache entry.
+The quirks now learn the exact SR-260 model identity from validated Control4
+traffic and apply the remote quirk through ZHA's device-rebuild lifecycle.
+The address prefix alone is **not** identification. After a successful exchange
+the device should show **Control4 / C4-SR260**, with its key triggers available.
+Listen to `zha_event` and press a key. The model mapping is saved automatically
+in `/config/.storage/c4_quirk_data.json`; keep existing mappings and back it up.
+
+For an already-paired unknown remote, install the updated files and perform the
+required full Home Assistant restart, then wake the remote. It can be recognized
+without deleting or rejoining. No additional restart is normally needed once a
+valid identity arrives on the tested zigpy/ZHA lifecycle.
+
+This is not zero-step discovery: ZHA pairing, a loaded quirk set and awake radio
+traffic are required. Probes are bounded (three per device/process, at least
+30 seconds apart), as are rebuild attempts (two, at least 60 seconds apart).
+If it stays unknown, inspect the ZHA logs, wake it again, and use ZHA reconfigure
+if its interview is incomplete. Missing lifecycle APIs, exhausted retries or an
+unreadable cache require explicit recovery; do not loop resets or delete the
+network. A restart after learning a model is a fallback on unsupported versions,
+not the normal new-remote workflow.
+
+Offline coverage uses zigpy 2.2.0 and ZHA/zha-quirks 2.2.2. It checks strict
+unwrapped ZCL identity frames on profile `0xC25D`, cluster 1, endpoint 2; exact
+historical packet bytes and other wrappers were not available for verification.
+Physical automatic-onboarding acceptance is pending.
+
+Recognition does not transfer an old remote's automation settings to a different
+IEEE/device. Select the intended device when creating or updating an automation.
+
+### Manual fallback
+
+Only if automatic recognition has failed and you have independently confirmed
+the device is an SR-260, the earlier manual cache method remains available:
 
 1. Arrange access to the configuration files that works while Home Assistant
    Core is stopped, then stop Core. If your only file editor stops with Core,
@@ -78,7 +111,7 @@ Two remotes:
 }
 ```
 
-The running quirk keeps a cache in memory; editing while Core runs can lose
+The running quirk keeps a cache in memory; manual editing while Core runs can lose
 your changes. After startup, confirm the entries remain and the devices show
 **Control4 / C4-SR260**.
 

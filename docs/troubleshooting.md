@@ -9,10 +9,12 @@ label or manifest comparison as proof of physical behavior.
 | No ZHA coordinator | Configure ZHA with its own supported coordinator; do not reuse the radio owned by Zigbee2MQTT |
 | Quirks do not load | All 15 files must be flat in the directory configured by `custom_quirks_path`; inspect startup import errors; fully restart after changes |
 | Existing custom quirks stop working | Restore the prior path and files; never redirect ZHA away from an existing custom directory |
-| Remote stays unknown | Confirm the actual eight-byte IEEE and `C4-SR260` cache mapping, valid flat JSON, and a full restart; check that the mapping survived |
+| Remote stays unknown | Confirm updated quirks loaded after a full restart, wake the remote, and inspect discovery logs; identification requires the real model attribute, not just the address prefix. Reconfigure an incomplete interview; use the documented manual fallback only for a confirmed SR-260 |
 | Files are in the wrong directory | Move the package files into the existing configured directory, keeping other quirks intact |
 | `BUTTON_7` / `BUTTON_8` import error | Check that this package's `c4_helpers.py`, including its compatibility fallback, is installed; do not mix versions |
-| Keys produce no events | Listen to `zha_event`, wake the remote and press a key; confirm model-cache onboarding and loaded quirks before attempting resets |
+| Keys produce no events | Listen to `zha_event`, wake the remote and press a key; confirm Control4 / C4-SR260 and active quirk/key triggers, not only a cache entry. Rebuild errors need investigation before resets |
+| Automatic identity was learned but activation failed | Check the explicit lifecycle error in ZHA logs; supported zigpy/ZHA rebuild APIs are required. A restart after model learning is a fallback; don't repeatedly delete/rejoin |
+| Model cache cannot be read or saved | Preserve it and its backup, inspect JSON/permissions, and restart after a deliberate repair. Automatic persistence refuses to overwrite an unreadable cache |
 | Events arrive but no action | Inspect automation enabled state, chosen remote, target entities and trace; make sure only the intended automation owns that remote |
 | TV key does nothing | Verify the target `remote` entity and its integration-specific command names; Roku defaults are not universal |
 | Screen misses an update | The radio sleeps; test immediately after a remote event, not an arbitrary delayed push; reduce avoidable delays |
@@ -32,6 +34,12 @@ unexpected changes with your backup before replacing files.
 `MANIFEST.sha256` records checksums for those files with CRLF normalized to LF.
 It is an optional integrity reference, not something you need to run to install.
 Checksums detect differences, not author identity or a trustworthy download.
+
+Automatic discovery sends a bounded controller-identity exchange and model
+attribute query while the remote is awake. It does not identify a sleeping
+device or infer its model from `00:0f:ff`. Limits and compatibility are in
+[recognition checks](install.md#3-check-automatic-recognition). This also does
+not migrate an automation from an old remote to a newly paired replacement.
 
 ## Pairing and reset uncertainty
 

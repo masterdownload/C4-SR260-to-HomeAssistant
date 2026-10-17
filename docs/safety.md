@@ -17,8 +17,10 @@ not been physically verified. At the source handoff, configuration had been
 loaded but no remote event had exercised the new full behavior. This package
 does not claim a later physical result.
 
-ZHA only; no Zigbee2MQTT support or shared coordinator. Manual model-cache
-onboarding is needed. Other custom-quirk layouts, devices, networks and
+ZHA only; no Zigbee2MQTT support or shared coordinator. Automatic SR-260
+identity learning needs a paired, awake remote and validated identity traffic;
+manual cache seeding is a fallback, not a normal onboarding step.
+Other custom-quirk layouts, devices, networks and
 Home Assistant updates require cautious evaluation.
 
 ## Preserve existing quirks
@@ -38,7 +40,8 @@ reloading or enabling it. Avoid UI **Re-assign** as an upgrade method: input
 loss was observed, but its cause has not been confirmed.
 
 Reload automations when only their blueprint/YAML changes. Perform a **full
-Home Assistant restart** when quirk code or the model cache changes.
+Home Assistant restart** when quirk code changes or you manually edit the model
+cache. Automatic learning/rebuild does not normally need a second restart.
 
 ## Recovery
 

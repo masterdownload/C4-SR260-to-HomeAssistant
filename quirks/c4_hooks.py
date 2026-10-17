@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified by masterdownload, 2026-10-17: validated SR-260 discovery before
+# quirk application, bounded identity probes and ZHA device lifecycle promotion.
+# Derived from pvanbaren/zha-device-handlers; see docs/attribution.md.
 """Monkey-patches installed at import time for all C4 devices.
 
 Patch 1 — Endpoint.initialize
@@ -21,6 +25,7 @@ _C4_MODEL_QUIRK_MAP is populated by each device module at import time via
   _C4_MODEL_QUIRK_MAP["model_string"] = QuirkClass
 """
 
+import asyncio
 import logging
 import os
 import sys
@@ -53,6 +58,157 @@ _LOGGER.info("=== C4 QUIRK FILE LOADED (multi-device) ===")
 #   _C4_MODEL_QUIRK_MAP["C4-APD120"] = Control4APD120Dimmer
 # ---------------------------------------------------------------------------
 _C4_MODEL_QUIRK_MAP: dict = {}
+
+
+def _sr260_task_done(task):
+    if task.cancelled():
+        return
+    try:
+        task.result()
+    except Exception:
+        _LOGGER.error("C4 SR-260 automatic identification failed; inspect logs before retrying", exc_info=True)
+
+
+def _sr260_schedule(device, name, coroutine):
+    task = asyncio.create_task(coroutine, name=name)
+    task.add_done_callback(_sr260_task_done)
+    return task
+
+
+async def _sr260_activate(device):
+    """Let first-join initialization finish, then rebuild an existing generic device."""
+    application = device.application
+    if device.initializing:
+        try:
+            await asyncio.wait_for(asyncio.shield(device._initialize_task), timeout=60)
+        except asyncio.TimeoutError:
+            _LOGGER.warning("C4 SR-260 interview still pending; wake the remote and inspect ZHA before retrying")
+            return
+    current = application.devices.get(device.ieee)
+    quirk = _C4_MODEL_QUIRK_MAP.get("C4-SR260")
+    if current is None or quirk is None or isinstance(current, quirk):
+        return
+    if current.model != "C4-SR260":
+        return
+    if not current.is_initialized or current.reinterviewing:
+        _LOGGER.warning("C4 SR-260 identity learned, but interview is incomplete; wake and reconfigure the device")
+        return
+    promote = getattr(application, "_device_reinterviewed", None)
+    clone = getattr(current, "clone", None)
+    if not callable(promote) or not callable(clone):
+        _LOGGER.error("C4 SR-260 identity learned, but this zigpy lacks safe device replacement; restart then reconfigure ZHA")
+        return
+    # Persist a raw signature, not quirk-only virtual endpoints. Preflight the
+    # resolver before the lifecycle removes the old database rows.
+    replacement = clone()
+    # zigpy's public signature setter is write-once, including on clones.
+    replacement._original_signature = None
+    if not isinstance(application._resolve_device(replacement), quirk):
+        raise RuntimeError("SR-260 resolver preflight failed; keeping the existing device")
+    await promote(current, replacement)
+    if not isinstance(application.devices.get(current.ieee), quirk):
+        raise RuntimeError("SR-260 replacement did not resolve to the remote quirk")
+    _LOGGER.info("C4 SR-260 identity verified and quirk activated through the device rebuild lifecycle")
+
+
+def _sr260_start_activation(device):
+    task = getattr(device, "_c4_sr260_activation", None)
+    if task is not None and not task.done():
+        return
+    attempts = getattr(device, "_c4_sr260_activations", 0)
+    last = getattr(device, "_c4_sr260_activation_at", float("-inf"))
+    if attempts >= 2 or time.monotonic() - last < 60:
+        return
+    device._c4_sr260_activations = attempts + 1
+    device._c4_sr260_activation_at = time.monotonic()
+    device._c4_sr260_activation = _sr260_schedule(device, "c4_sr260_activate", _sr260_activate(device))
+
+
+async def _sr260_identity_poll(device, header):
+    await C4._c4_send_controller_identity(device, source="sr260_discovery_poll", zcl_seq=header.tsn)
+    if getattr(device, "_c4_sr260_probes", 0) >= 3:
+        return
+    device._c4_sr260_probes = getattr(device, "_c4_sr260_probes", 0) + 1
+    sequence = device.get_sequence()
+    device._c4_sr260_query = sequence
+    await device.request(
+        profile=C4_PROFILE_NETWORK, cluster=C4_CLUSTER_ID, src_ep=2, dst_ep=2,
+        sequence=sequence, data=bytes((0, sequence, 0, 7, 0)), expect_reply=False,
+    )
+    _LOGGER.debug("C4: requested identity attribute for an unclassified Control4 device")
+    if device._c4_sr260_probes == 3:
+        _LOGGER.warning("C4: final automatic identity probe sent; if still unknown, inspect ZHA logs and wake/reconfigure the device")
+
+
+async def _sr260_ack_identity(device, header):
+    if int(header.command_id) in (2, 3):
+        await device.request(
+            profile=C4_PROFILE_NETWORK, cluster=C4_CLUSTER_ID, src_ep=2, dst_ep=2,
+            sequence=device.get_sequence(), data=bytes((8, header.tsn, 4, 0)), expect_reply=False,
+        )
+
+
+def _sr260_discovery(device, packet):
+    """Recognize only a complete SR-260 model attribute, never an IEEE prefix."""
+    parsed = C4._sr260_identity_message(packet)
+    if parsed is None:
+        return False
+    header, arguments = parsed
+    command = int(header.command_id)
+    model = getattr(device, "model", None)
+    quirk = _C4_MODEL_QUIRK_MAP.get("C4-SR260")
+    active = quirk is not None and isinstance(device, quirk)
+    if model and model not in _INVALID_MODELS and model != "C4-SR260":
+        return False
+    if command == 0:
+        if active:
+            return False
+        requested = list(arguments.attribute_ids)
+        if not requested or not set(requested) <= {8, 9, 10}:
+            return False
+        device.last_seen = time.time()
+        last = getattr(device, "_c4_sr260_poll_at", float("-inf"))
+        task = getattr(device, "_c4_sr260_poll", None)
+        if (task is None or task.done()) and time.monotonic() - last >= 30:
+            device._c4_sr260_poll_at = time.monotonic()
+            device._c4_sr260_poll = _sr260_schedule(device, "c4_sr260_identity_poll", _sr260_identity_poll(device, header))
+        return True
+    if command == 1:
+        if header.tsn != getattr(device, "_c4_sr260_query", None):
+            return False
+        records = arguments.status_records
+    elif command == 10:
+        records = arguments.attribute_reports
+    else:
+        records = arguments.attributes
+    identities = [record for record in records if record.attrid == C4.C4_ATTR_MODEL]
+    if len(identities) != 1:
+        return False
+    record = identities[0]
+    if command == 1 and record.status != C4.ZCLStatus.SUCCESS:
+        return False
+    if record.value is None or record.value.type != 0x42 or record.value.value != "c4:control4_sr260:C4-SR260":
+        return False
+    cached = get_model_from_ieee(str(device.ieee))
+    if cached is not None and cached != "C4-SR260":
+        _LOGGER.warning("C4 SR-260 identity conflicts with the stored device model; refusing automatic replacement")
+        return True
+    if command == 10:
+        raw = packet.data.serialize() if hasattr(packet.data, "serialize") else bytes(packet.data)
+        _c4_sniff_model(device, raw, sr260_verified=True)
+    if active:
+        if command in (2, 3):
+            _sr260_schedule(device, "c4_sr260_identity_ack", _sr260_ack_identity(device, header))
+            return True
+        return False
+    C4.set_model_for_ieee(str(device.ieee), "C4-SR260")
+    device.last_seen = time.time()
+    device.model, device.manufacturer = "C4-SR260", "Control4"
+    C4._sync_ep1_model(device, "C4-SR260", "auto_identity")
+    if command in (2, 3):
+        _sr260_schedule(device, "c4_sr260_identity_ack", _sr260_ack_identity(device, header))
+    _sr260_start_activation(device)
+    return True
 
 # ---------------------------------------------------------------------------
 # Patch 1: Auto-complete C4 endpoint interviews (skip Simple_Desc_req)
@@ -292,6 +448,8 @@ try:
                 if model and isinstance(model, str):
                     quirk_cls = _C4_MODEL_QUIRK_MAP.get(model)
                     if quirk_cls is not None:
+                        if isinstance(device, quirk_cls):
+                            return device
                         device.model = model
                         device.manufacturer = manuf or "Control4"
                         _LOGGER.debug(
@@ -405,6 +563,7 @@ try:
                         resolved = get_model_from_ieee(ieee)
                         if resolved is not None:
                             model = resolved
+                            manuf = "Control4"
                             _LOGGER.debug(
                                 "C4 zha.resolve: ieee=%s model=%r (from cache)",
                                 ieee, model,
@@ -418,6 +577,8 @@ try:
                     if model and isinstance(model, str):
                         quirk_cls = _C4_MODEL_QUIRK_MAP.get(model)
                         if quirk_cls is not None:
+                            if isinstance(device, quirk_cls):
+                                return device
                             device.model = model
                             device.manufacturer = manuf or "Control4"
                             _LOGGER.debug(
@@ -467,7 +628,10 @@ try:
                     device = self.get_device_with_address(packet.src)
                     if device is not None:
                         ieee = str(getattr(device, 'ieee', '')).lower()
+                        if not ieee.startswith(C4_IEEE_PREFIX):
+                            return _original_packet_received(self, packet)
                         if ieee.startswith(C4_IEEE_PREFIX):
+                            discovery_handled = _sr260_discovery(device, packet)
                             if packet.profile_id == C4_PROFILE_NETWORK:
                                 msg = packet.data
                                 if hasattr(msg, 'serialize'):
@@ -484,7 +648,8 @@ try:
                                     and msg[4:6] in _C4_APP_HDR_PROFILES
                                     else msg
                                 )
-                                _c4_sniff_model(device, inner)
+                                if not discovery_handled:
+                                    _c4_sniff_model(device, inner)
 
                         if device.is_initialized:
                             _LOGGER.debug(
@@ -494,8 +659,12 @@ try:
                                 packet.src_ep,
                                 packet.src.address,
                             )
-                            device.custom_profile_packet_received(packet)
-                        return   # always return for C4 — never call _original
+                            if not (ieee.startswith(C4_IEEE_PREFIX) and discovery_handled):
+                                device.custom_profile_packet_received(packet)
+                        if not device.is_initialized:
+                           # Keep zigpy's first-join initialization scheduling intact.
+                           return _original_packet_received(self, packet)
+                        return
 
                 except Exception as exc:
                     _LOGGER.warning(

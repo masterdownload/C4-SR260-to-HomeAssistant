@@ -3,6 +3,15 @@
 These are implemented v0.1 features, not a claim of completed physical testing.
 See the [evidence limits in the README](../README.md).
 
+## Automatic identity learning
+
+After pairing and waking, a verified SR-260 model attribute can activate the
+remote quirk and refresh ZHA without routine manual cache edits or a second
+restart. Already-paired unknown devices use the same path. This relies on actual
+identity traffic and supported zigpy/ZHA lifecycle APIs, not an IEEE-prefix
+guess. The implementation is offline-tested; physical acceptance is pending.
+See [installation limits and fallback](install.md#3-check-automatic-recognition).
+
 ## Events and keys
 
 The quirk exposes 50 key names through `zha_event` and device triggers.
