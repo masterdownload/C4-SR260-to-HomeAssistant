@@ -23,6 +23,13 @@ manual cache seeding is a fallback, not a normal onboarding step.
 Other custom-quirk layouts, devices, networks and
 Home Assistant updates require cautious evaluation.
 
+Experimental controller registration sends an unsolicited identity response,
+then the existing identity report followed by a
+Many-to-One Route Request, which advertises routes across the Zigbee network.
+It is bounded and restricted to verified/cached SR-260s, but is not confined
+to a private UI change. Keep backups and verify other devices after a quirk
+update. Recognition/key-trigger metadata is not proof of physical operation.
+
 ## Preserve existing quirks
 
 ZHA reads one `custom_quirks_path`. Keep an existing path and its contents.

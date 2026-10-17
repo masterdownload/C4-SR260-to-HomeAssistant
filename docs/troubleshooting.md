@@ -14,8 +14,11 @@ label or manifest comparison as proof of physical behavior.
 | `BUTTON_7` / `BUTTON_8` import error | Check that this package's `c4_helpers.py`, including its compatibility fallback, is installed; do not mix versions |
 | Keys produce no events | Listen to `zha_event`, wake the remote and press a key; confirm Control4 / C4-SR260 and active quirk/key triggers, not only a cache entry. Rebuild errors need investigation before resets |
 | Automatic identity was learned but activation failed | Check the explicit lifecycle error in ZHA logs; supported zigpy/ZHA rebuild APIs are required. A restart after model learning is a fallback; don't repeatedly delete/rejoin |
+| Recognized remote still sends only Device Announce | Model/class matching is not application registration. Install the current response-first quirks and fully restart once, then check actual events and registration errors; a blueprint-only update or repeated resets will not establish the missing handshake |
 | Model cache cannot be read or saved | Preserve it and its backup, inspect JSON/permissions, and restart after a deliberate repair. Automatic persistence refuses to overwrite an unreadable cache |
 | Events arrive but no action | Inspect automation enabled state, chosen remote, target entities and trace; make sure only the intended automation owns that remote |
+| Key events arrive for a different device than the automation | Select the replacement remote in that automation while preserving its other inputs; discovery does not migrate old device references |
+| List works but the room-name header seems blank | Let the screen go completely dark, wait a few seconds, then pick up without pressing a key. Check the wake-text/header settings and a real wake event; pressing keys on an already-awake remote is not that test |
 | TV key does nothing | Verify the target `remote` entity and its integration-specific command names; Roku defaults are not universal |
 | Screen misses an update | The radio sleeps; test immediately after a remote event, not an arbitrary delayed push; reduce avoidable delays |
 | Wrong menu opens or selection runs wrong row | Use distinct menu titles and unique short row labels; compare saved inputs and automation trace |
@@ -46,6 +49,16 @@ use the updated announce-trigger hook; the first discovery implementation
 missed this cold-start path. Normal Zigbee join processing still runs first,
 and a model response is required before activation. A transmitted query alone
 is not evidence of successful recognition.
+
+The experimental registration sequence adds an unsolicited controller identity
+response before the identity report and bounded global MTORR for verified/cached
+SR-260s. The earlier report/MTORR-only physical attempt did not restore key
+traffic. Response/report delivery errors, non-success MTORR statuses and
+unsupported radio backends are explicit in logs. No new attribute values,
+firmware or undocumented ASCII settings are part of this variation.
+The response-first form enabled actual keys/menus on one observed replacement,
+and its wake header was owner-confirmed. Do not confuse that scoped acceptance
+with a guarantee of uncached first joins or all v0.1 behavior.
 
 ## Pairing and reset uncertainty
 

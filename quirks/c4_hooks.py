@@ -126,6 +126,56 @@ def _sr260_start_activation(device):
     device._c4_sr260_activation = _sr260_schedule(device, "c4_sr260_activate", _sr260_activate(device))
 
 
+async def _sr260_register(device, source):
+    try:
+        _LOGGER.warning("C4 SR-260 EXPERIMENTAL controller identity response before registration; physical key verification required")
+        if not await C4._c4_send_controller_identity(
+            device, source="sr260_experimental_registration", zcl_seq=device.get_sequence(),
+        ):
+            _LOGGER.error("C4 SR-260 experimental identity response failed; registration stopped")
+            return
+        if not await C4._c4_report_controller_identity(
+            device, source=source, zcl_seq=device.get_sequence(),
+        ):
+            _LOGGER.error("C4 SR-260 registration report failed; no route advertisement sent")
+            return
+        if not await C4._send_many_to_one_route_request(device.application):
+            _LOGGER.error("C4 SR-260 registration route advertisement failed; button operation is not confirmed")
+            return
+        _LOGGER.info("C4 SR-260 controller registration report and route advertisement sent; verify physical key events")
+    except asyncio.CancelledError:
+        _LOGGER.warning("C4 SR-260 registration cancelled; controller registration may be incomplete")
+        raise
+
+
+def _sr260_start_registration(device, source):
+    """One in-flight exchange; at most two attempts per IEEE/NWK, 60 seconds apart."""
+    model = device.model
+    cached = get_model_from_ieee(str(device.ieee))
+    if model not in (None, "C4-SR260", *_INVALID_MODELS) or cached not in (None, "C4-SR260"):
+        return
+    if model != "C4-SR260" and cached != "C4-SR260":
+        return
+    application = device.application
+    states = getattr(application, "_c4_sr260_registrations", None)
+    if states is None:
+        states = application._c4_sr260_registrations = {}
+    state = states.get(device.ieee)
+    if state is None:
+        state = states[device.ieee] = {"task": None, "last": float("-inf"), "nwk": device.nwk, "attempts": 0}
+    if state["task"] is not None and not state["task"].done():
+        return
+    if time.monotonic() - state["last"] < 60:
+        return
+    if state["nwk"] != device.nwk:
+        state["nwk"], state["attempts"] = device.nwk, 0
+    if state["attempts"] >= 2:
+        return
+    state["last"] = time.monotonic()
+    state["attempts"] += 1
+    state["task"] = _sr260_schedule(device, "c4_sr260_register", _sr260_register(device, source))
+
+
 async def _sr260_identity_poll(device, header=None):
     device._c4_sr260_probes = getattr(device, "_c4_sr260_probes", 0) + 1
     if header is None:
@@ -180,6 +230,9 @@ def _sr260_announced(application, packet, previous):
     key = str(ieee).lower()
     if not key.startswith(C4_IEEE_PREFIX):
         return
+    if device.model == "C4-SR260" or (device.model in (None, *_INVALID_MODELS) and get_model_from_ieee(key) == "C4-SR260"):
+        _sr260_start_registration(device, "sr260_known_announce")
+        return
     if device.model and device.model not in _INVALID_MODELS:
         return
     if get_model_from_ieee(key) not in (None, ""):
@@ -202,6 +255,7 @@ def _sr260_discovery(device, packet):
         return False
     header, arguments = parsed
     command = int(header.command_id)
+    vendor_identity = header.frame_control.is_cluster
     model = getattr(device, "model", None)
     quirk = _C4_MODEL_QUIRK_MAP.get("C4-SR260")
     active = quirk is not None and isinstance(device, quirk)
@@ -216,7 +270,9 @@ def _sr260_discovery(device, packet):
         device.last_seen = time.time()
         _sr260_start_probe(device, header)
         return True
-    if command == 1:
+    if vendor_identity:
+        records = arguments.attribute_reports
+    elif command == 1:
         if header.tsn != getattr(device, "_c4_sr260_query", None):
             return False
         records = arguments.status_records
@@ -228,7 +284,7 @@ def _sr260_discovery(device, packet):
     if len(identities) != 1:
         return False
     record = identities[0]
-    if command == 1 and record.status != C4.ZCLStatus.SUCCESS:
+    if command == 1 and not vendor_identity and record.status != C4.ZCLStatus.SUCCESS:
         return False
     if record.value is None or record.value.type != 0x42 or record.value.value != "c4:control4_sr260:C4-SR260":
         return False
@@ -236,10 +292,8 @@ def _sr260_discovery(device, packet):
     if cached is not None and cached != "C4-SR260":
         _LOGGER.warning("C4 SR-260 identity conflicts with the stored device model; refusing automatic replacement")
         return True
-    if command == 10:
-        raw = packet.data.serialize() if hasattr(packet.data, "serialize") else bytes(packet.data)
-        _c4_sniff_model(device, raw, sr260_verified=True)
     if active:
+        _sr260_start_registration(device, "sr260_verified_identity")
         if command in (2, 3):
             _sr260_schedule(device, "c4_sr260_identity_ack", _sr260_ack_identity(device, header))
             return True
@@ -248,6 +302,7 @@ def _sr260_discovery(device, packet):
     device.last_seen = time.time()
     device.model, device.manufacturer = "C4-SR260", "Control4"
     C4._sync_ep1_model(device, "C4-SR260", "auto_identity")
+    _sr260_start_registration(device, "sr260_verified_identity")
     if command in (2, 3):
         _sr260_schedule(device, "c4_sr260_identity_ack", _sr260_ack_identity(device, header))
     _sr260_start_activation(device)

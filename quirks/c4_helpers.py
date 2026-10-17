@@ -301,15 +301,31 @@ def set_model_for_ieee(key: str, value: str) -> None:
 
 
 def _sr260_identity_message(packet):
-    """Parse complete, unwrapped global ZCL traffic on the documented identity endpoint."""
+    """Parse complete global ZCL or the captured Control4 identity command."""
     if (packet.profile_id, packet.cluster_id, packet.src_ep) != (C4_PROFILE_NETWORK, C4_CLUSTER_ID, 2):
         return None
     raw = packet.data.serialize() if hasattr(packet.data, "serialize") else bytes(packet.data)
-    if not raw or len(raw) > 512 or raw[0] & 0xE7:
+    if not raw or len(raw) > 512:
         return None
     try:
         header, body = foundation.ZCLHeader.deserialize(raw)
         command = int(header.command_id)
+        if header.frame_control.is_cluster:
+            if raw[0] != 0x1D or header.manufacturer != 0x1040 or command != 1:
+                return None
+            records = []
+            seen = set()
+            while body:
+                record, body = foundation.Attribute.deserialize(body)
+                if record.attrid in seen:
+                    return None
+                seen.add(record.attrid)
+                records.append(record)
+            if not records:
+                return None
+            return header, foundation.GENERAL_COMMANDS[10].schema(attribute_reports=records)
+        if raw[0] & 0xE7:
+            return None
         if command not in (0, 1, 2, 3, 10):
             return None
         if command in (0, 2, 3) and header.frame_control.direction != foundation.Direction.Client_to_Server:
@@ -725,7 +741,7 @@ async def _c4_send_controller_identity(device, source="unknown", zcl_seq=None):
 
     if coordinator_ieee is None:
         _LOGGER.error("C4 identity (%s): cannot determine coordinator IEEE", source)
-        return
+        return False
 
     # ZCL frame control 0x08: global, server→client, default response enabled
     zcl_hdr = struct.pack('<BBB', 0x08, zcl_seq & 0xFF, 0x01)
@@ -747,8 +763,10 @@ async def _c4_send_controller_identity(device, source="unknown", zcl_seq=None):
             sequence=device.get_sequence(), data=data, expect_reply=False,
         )
         _LOGGER.debug("C4 identity (%s): sent successfully", source)
+        return True
     except Exception as e:
         _LOGGER.error("C4 identity (%s): failed — %s", source, e)
+        return False
 
 
 async def _c4_report_controller_identity(device, source="unknown", zcl_seq=None):
@@ -764,7 +782,7 @@ async def _c4_report_controller_identity(device, source="unknown", zcl_seq=None)
 
     if coordinator_ieee is None:
         _LOGGER.error("C4 report identity (%s): cannot determine coordinator IEEE", source)
-        return
+        return False
 
     zcl_hdr = struct.pack('<BBB', 0x08, zcl_seq & 0xFF, 0x0A)
 
@@ -785,34 +803,43 @@ async def _c4_report_controller_identity(device, source="unknown", zcl_seq=None)
             sequence=device.get_sequence(), data=data, expect_reply=False,
         )
         _LOGGER.debug("C4 report identity (%s): sent successfully", source)
+        return True
     except Exception as e:
         _LOGGER.error("C4 report identity (%s): failed — %s", source, e)
+        return False
 
 
-async def _send_many_to_one_route_request(app) -> None:
+async def _send_many_to_one_route_request(app) -> bool:
     """Broadcast a ZigBee NWK Many-to-One Route Request from the coordinator.
 
     Tries bellows (EZSP) then zigpy-znp (TI ZNP).
     """
     if hasattr(app, '_ezsp'):
         try:
-            await app._ezsp.sendManyToOneRouteRequest(
+            response = await app._ezsp.sendManyToOneRouteRequest(
                 concentratorType=0xFFF9, radius=5,
             )
+            if not isinstance(response, (list, tuple)) or len(response) != 1 or response[0] != 0:
+                _LOGGER.error("EZSP Many-to-One Route Request failed or returned an unknown status: %r", response)
+                return False
             _LOGGER.debug("Many-to-One Route Request sent via EZSP")
-            return
+            return True
         except Exception as exc:
             _LOGGER.warning("EZSP sendManyToOneRouteRequest failed — %s", exc)
 
     if hasattr(app, '_znp'):
         try:
-            import zigpy_znp.znp.commands as znp_c
-            await app._znp.request(
-                znp_c.ZDO.ExtRouteDisc.Req(Dst=0xFFFC, Options=0x08, Radius=5),
+            import zigpy_znp.commands as znp_c
+            from zigpy_znp.commands.zdo import RouteDiscoveryOptions
+            response = await app._znp.request(
+                znp_c.ZDO.ExtRouteDisc.Req(Dst=0xFFFC, Options=RouteDiscoveryOptions(0x08), Radius=5),
                 RspSchema=znp_c.ZDO.ExtRouteDisc.Rsp,
             )
+            if getattr(response, "Status", None) != 0:
+                _LOGGER.error("ZNP Many-to-One Route Request failed or returned an unknown status: %r", response)
+                return False
             _LOGGER.debug("Many-to-One Route Request sent via ZNP")
-            return
+            return True
         except Exception as exc:
             _LOGGER.warning("ZNP ExtRouteDisc failed — %s", exc)
 
@@ -820,6 +847,7 @@ async def _send_many_to_one_route_request(app) -> None:
         "_send_many_to_one_route_request: no supported radio backend found "
         "(tried EZSP, ZNP)"
     )
+    return False
 
 
 # ---------------------------------------------------------------------------

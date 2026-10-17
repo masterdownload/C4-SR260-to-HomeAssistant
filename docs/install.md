@@ -86,6 +86,11 @@ after waking, without manual seeding, delete/rejoin or a restart after identity
 learning. A brand-new first join remains offline-tested, not physically proven.
 Other wrappers, firmware and lifecycle versions remain unverified.
 
+The discovery parser also accepts the captured Control4 manufacturer-specific
+identity form (`0x1040`, cluster command 1, status-free attribute records).
+This is identity coverage only: it does not add controller provisioning, prove
+key traffic, or resolve a remote that still sends only network announcements.
+
 Recognition does not transfer an old remote's automation settings to a different
 IEEE/device. Select the intended device when creating or updating an automation.
 
@@ -123,6 +128,69 @@ Two remotes:
 The running quirk keeps a cache in memory; manual editing while Core runs can lose
 your changes. After startup, confirm the entries remain and the devices show
 **Control4 / C4-SR260**.
+
+### Controller registration and operational check
+
+The experimental verified/cached SR-260 registration sequence sends an
+unsolicited controller identity Read Attributes Response, then the controller
+identity Report Attributes, then the existing Zigbee Many-to-One
+Route Request (MTORR) helper. This is an explicitly experimental message-form
+variation, not a claim that every SR-260 accepts this sequence. MTORR is a
+**network-wide route advertisement**, not a firmware change or a thermostat/
+media action. Unknown Control4-prefix devices do not trigger MTORR merely from
+their address or an announcement. Their model must be verified first.
+
+Registration has a separate bound from model queries: one in-flight exchange,
+at least 60 seconds between attempts, and at most two attempts for the same
+IEEE/network address per process. A changed network address can get a new
+bounded attempt after the cooldown. Cached SR-260 reset/rejoins can register
+without exhausting or depending on the unknown-model query budget.
+
+This sequence follows the upstream author's
+[documented registration finding](https://community.home-assistant.io/t/control4-sw2-zx-with-zha/844219/12).
+The unsolicited response is a separately investigated form from an
+[upstream SR-260 fixes proposal](https://github.com/pvanbaren/zha-device-handlers/pull/1);
+the existing helper's values/endpoints are kept, not the proposal's other
+features or inferred protocol changes. Logs mark the sequence EXPERIMENTAL.
+Each send must finish before the next; actual radio return-status failures
+are logged and stop the sequence. A successful send, recognized model, or exposed trigger list
+does **not** prove the remote accepted registration. Check actual `motion_wake`
+and key press/release events, then menus/header at the physical remote.
+This registration revision is offline-tested; physical operational acceptance
+was subsequently observed on one already-identified replacement with its model
+cache preserved: real List/Room Off key traffic and menus worked, and the owner
+confirmed the room-name header after sleep/pickup. This is not a physically
+verified fully uncached first join or a guarantee for every remote/firmware.
+
+If a recognized remote still sends only Device Announce and no Control4 key/
+motion frames, stop repeating reset/re-pair operations. Its Zigbee interview
+has succeeded, but application registration is not confirmed. Preserve logs
+and the known-good backup; do not guess new attribute values or firmware steps.
+
+Check acceptance in order:
+
+1. Device shows Control4 / C4-SR260 with the active remote quirk.
+2. Real presses produce `zha_event` press/release commands; a trigger dropdown
+   alone does not prove the remote transmits them.
+3. List opens the configured Room menu and one harmless action works.
+4. Let the screen go fully dark, wait a few seconds, then pick it up without
+   pressing a key. Confirm the configured room-name header appears.
+
+The header is wake-driven; repeatedly pressing keys while already awake is not
+the same test. Select the correct device in each automation when replacing a
+remote. These quirks do not migrate an old device reference automatically.
+Keep all automation inputs when updating the blueprint path.
+
+### Why one remote needed the response-first form
+
+On the observed replacement, model reads succeeded but it sent only network
+announcements, not Control4 keys. Report-only and Report -> MTORR attempts did
+not enable key traffic. With the same existing controller values/endpoints,
+adding the identity-response form immediately produced vendor identity/status
+and then key events. Both that remote and the working comparison reported
+firmware 2.2.50. That supports a controller-registration/message-handling
+difference, not a proven firmware or hardware difference. Why their initial
+controller state differed remains unknown.
 
 ## 4. Copy the blueprint
 

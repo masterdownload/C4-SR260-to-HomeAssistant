@@ -52,6 +52,10 @@ remote cannot identify itself. If it stays unknown, follow
 [recognition checks and manual fallback](docs/install.md#3-check-automatic-recognition).
 Recognition without manual seeding or re-pairing was physically confirmed on
 one already-paired unknown remote; brand-new first joins remain offline-tested.
+Recognition alone does not prove keys or menus work. Controller registration
+uses an experimental bounded identity-response/report/route-advertisement
+exchange; see the
+[operational check](docs/install.md#controller-registration-and-operational-check).
 
 **5. Install the blueprint.** Copy the downloaded YAML to:
 
@@ -62,6 +66,13 @@ one already-paired unknown remote; brand-new first joins remain offline-tested.
 Open **Settings > Automations & scenes > Blueprints**, select it and create
 one automation per remote. Pick the remote and the room's entities. Start
 with one harmless action and check it at the physical remote.
+
+**Acceptance:** check the model, then actual key events, the List menu and the
+room name after the screen goes dark and you pick the remote up without a key.
+List, Room Off and the wake header were physically confirmed on one replacement
+with a preserved model cache. A truly uncached first join is not yet physically
+verified. Existing installs need the updated quirks plus one full HA restart;
+replacing only the blueprint cannot fix missing radio events.
 
 No installer, helper tools or tests to run. No command-line Python required.
 [Installation details](docs/install.md) · [Features](docs/features.md) ·

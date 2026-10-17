@@ -15,6 +15,13 @@ first joins remain offline-tested; physical keys/menus are a separate check.
 Validated Device Announce traffic can start a bounded query for an unknown
 Control4-prefix device; that announcement alone never classifies it.
 See [installation limits and fallback](install.md#3-check-automatic-recognition).
+Verified/cached SR-260s also use experimental bounded controller registration
+(identity response, report, then network-wide MTORR route advertisement),
+including after reset/rejoin.
+This is separate from learning a model. Actual key/motion/menu operation must be
+checked. List/Room Off and menus were captured working on one cache-preserved
+replacement; its wake room-name header was confirmed by the owner after sleep/
+pickup. That does not establish every v0.1 feature or a truly uncached first join.
 
 ## Events and keys
 
