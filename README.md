@@ -4,6 +4,8 @@
 without a Control4 controller.
 
 Watch/Listen menus, room controls, TV keys, volume, screen text and clock.
+Optional scene/automation media-key actions and a native ZHA Battery diagnostic
+are included; empty action selections preserve the existing remote commands.
 The full new blueprint behavior has **not yet been physically verified**.
 Reported testing: Home Assistant 2026.9.4, SONOFF ZBDongle-E / EZSP,
 channel 15, three remotes. Other setups are unverified.
@@ -66,6 +68,13 @@ exchange; see the
 Open **Settings > Automations & scenes > Blueprints**, select it and create
 one automation per remote. Pick the remote and the room's entities. Start
 with one harmless action and check it at the physical remote.
+
+Optional media-key action sections let a scene/automation replace a key's
+command **once per press**; leaving it empty keeps the command and hold repeats.
+For Roku, Apple TV or another target, edit command text using the
+[command-name reference](docs/remote-commands.md). Nothing is downloaded or
+updated automatically. Battery appears under the ZHA device's diagnostics and
+stays unknown until a valid passive report arrives.
 
 **Acceptance:** check the model, then actual key events, the List menu and the
 room name after the screen goes dark and you pick the remote up without a key.

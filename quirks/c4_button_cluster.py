@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Modified by masterdownload, 2026-10-14: diagnostic events, bounded probing,
-# raw-frame reporting, silent menu choices and screen announcements.
+# Modified by masterdownload, 2026-10-17: diagnostic events, bounded probing,
+# raw frames, silent menus, screen announcements and passive battery reports.
 # Derived from pvanbaren/zha-device-handlers; see docs/attribution.md.
 """C4 button clusters — shared across dimmer, switch, scene controller, outlet, remote.
 
@@ -18,13 +18,14 @@ Classes exported:
 
 import logging
 import os
+import re
 import sys
 
 _QUIRK_DIR = os.path.dirname(os.path.abspath(__file__))
 if _QUIRK_DIR not in sys.path:
     sys.path.insert(0, _QUIRK_DIR)
 
-from zigpy.zcl.clusters.general import LevelControl, OnOff
+from zigpy.zcl.clusters.general import LevelControl, OnOff, PowerConfiguration
 
 from zhaquirks import EventableCluster
 from zhaquirks.const import (
@@ -862,7 +863,20 @@ class C4RemoteButtonCluster(C4ButtonCluster):
                 self.endpoint.device.ieee,
             )
         elif namespace == "c4.zr.bl":
-            _LOGGER.debug("C4 SR260: backlight event %s", data)
+            if len(data) != 1 or not isinstance(data[0], str) or re.fullmatch(r"[0-9a-fA-F]{1,2}", data[0]) is None:
+                _LOGGER.warning("C4 SR260: ignoring malformed battery percent report %r", data)
+            else:
+                percent = int(data[0], 16)
+                if percent > 100:
+                    _LOGGER.warning("C4 SR260: ignoring out-of-range battery percent report %r", data)
+                else:
+                    endpoint = self.endpoint.device.endpoints.get(1)
+                    power = endpoint.in_clusters.get(PowerConfiguration.cluster_id) if endpoint is not None else None
+                    if power is None:
+                        _LOGGER.warning("C4 SR260: valid battery report has no endpoint-1 PowerConfiguration cluster")
+                    else:
+                        power._update_attribute(PowerConfiguration.AttributeDefs.battery_percentage_remaining.id, percent * 2)
+                        _LOGGER.debug("C4 SR260: battery report %d%%", percent)
             if self._probing():
                 self.fire_c4_event(
                     "c4_announce", {"namespace": namespace, "data": list(data)},

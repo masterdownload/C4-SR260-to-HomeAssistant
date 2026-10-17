@@ -1,6 +1,6 @@
 # Blueprint reference: Control4 SR-260 Room Remote v0.1 (menus, room controls, full remote, clock, volume)
 
-> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `c423eec7b59b`). No tools or tests need to be run to install the blueprint.
+> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `98355a4eeb92`). No tools or tests need to be run to install the blueprint.
 
 Requires Home Assistant 2025.9.0 or newer. Run mode: `parallel` (up to 10 runs at once; extra runs are dropped silently).
 
@@ -96,7 +96,7 @@ Where the navigation, transport, digit and volume keys are sent. Leave empty to 
 
 ## Key command names (default = Roku) (`commands_section`)
 
-The command string sent to the remote entity for each key. The defaults are the key names of Home Assistant's Roku integration (up, select, back, home, reverse, forward, replay, channel_up ...). Leave a field empty to ignore that key. Other platforms use other spellings, e.g. Android TV DPAD_UP / MEDIA_PLAY.
+The command string sent to the remote entity for each key. The defaults are the key names of Home Assistant's Roku integration (up, select, back, home, reverse, forward, replay, channel_up ...). Leave a field empty to ignore that key. Other platforms use other spellings, e.g. Android TV DPAD_UP / MEDIA_PLAY. Official integration examples and update sources: https://github.com/masterdownload/C4-SR260-to-HomeAssistant/blob/main/docs/remote-commands.md
 
 | Input | Name | Default | Type | What it does |
 |---|---|---|---|---|
@@ -129,3 +129,69 @@ The command string sent to the remote entity for each key. The defaults are the 
 | `digit_command_template` | Digits 0-9 (template) | `Lit_{n}` | text | The text {n} is replaced by the digit. Roku example Lit_{n}. Android TV / LG example {n}. |
 | `star_command` | Star (*) | `Lit_*` | text |   |
 | `hash_command` | Hash (#) | `Lit_#` | text |   |
+
+## Optional navigation-key actions (`navigation_actions_section`)
+
+A selected scene or automation replaces that key's command on short press, even without a remote entity. It runs once per press; holding does not repeat the action or send the underlying command. Empty keeps the command settings. Menu-owned navigation, Select and Cancel stay with the menu.
+
+| Input | Name | Default | Type | What it does |
+|---|---|---|---|---|
+| `up_target` | Up override | *(empty)* | entity (scene, automation) |   |
+| `down_target` | Down override | *(empty)* | entity (scene, automation) |   |
+| `left_target` | Left override | *(empty)* | entity (scene, automation) |   |
+| `right_target` | Right override | *(empty)* | entity (scene, automation) |   |
+| `select_target` | Select / OK override | *(empty)* | entity (scene, automation) |   |
+| `cancel_target` | Cancel / Back override | *(empty)* | entity (scene, automation) |   |
+| `home_target` | Control4 / Home override | *(empty)* | entity (scene, automation) |   |
+| `menu_target` | Menu override | *(empty)* | entity (scene, automation) |   |
+| `info_target` | Info override | *(empty)* | entity (scene, automation) |   |
+| `guide_target` | Guide override | *(empty)* | entity (scene, automation) |   |
+
+## Optional playback-key actions (`playback_actions_section`)
+
+Scene/automation overrides run once on short press, never repeatedly while held. Empty keeps the existing remote-command text. Dedicated Watch, Listen, List, Room Off and volume settings are unchanged.
+
+| Input | Name | Default | Type | What it does |
+|---|---|---|---|---|
+| `play_target` | Play override | *(empty)* | entity (scene, automation) |   |
+| `pause_target` | Pause override | *(empty)* | entity (scene, automation) |   |
+| `stop_target` | Stop override | *(empty)* | entity (scene, automation) |   |
+| `skip_back_target` | Skip back override | *(empty)* | entity (scene, automation) |   |
+| `skip_forward_target` | Skip forward override | *(empty)* | entity (scene, automation) |   |
+| `rewind_target` | Rewind override | *(empty)* | entity (scene, automation) |   |
+| `fast_forward_target` | Fast forward override | *(empty)* | entity (scene, automation) |   |
+| `record_target` | Record override | *(empty)* | entity (scene, automation) |   |
+
+## Optional channel, page and color actions (`extra_actions_section`)
+
+Empty preserves the command. A scene/automation override runs once per press and suppresses command repeats while held.
+
+| Input | Name | Default | Type | What it does |
+|---|---|---|---|---|
+| `page_up_target` | Page up override | *(empty)* | entity (scene, automation) |   |
+| `page_down_target` | Page down override | *(empty)* | entity (scene, automation) |   |
+| `channel_up_target` | Channel up override | *(empty)* | entity (scene, automation) |   |
+| `channel_down_target` | Channel down override | *(empty)* | entity (scene, automation) |   |
+| `red_target` | Red override | *(empty)* | entity (scene, automation) |   |
+| `green_target` | Green override | *(empty)* | entity (scene, automation) |   |
+| `yellow_target` | Yellow override | *(empty)* | entity (scene, automation) |   |
+| `blue_target` | Blue override | *(empty)* | entity (scene, automation) |   |
+| `star_target` | Star (*) override | *(empty)* | entity (scene, automation) |   |
+| `hash_target` | Hash (#) override | *(empty)* | entity (scene, automation) |   |
+
+## Optional digit-key actions (`digit_actions_section`)
+
+Each selected scene/automation runs once on that digit's short press. Empty keeps the Digits 0-9 command template.
+
+| Input | Name | Default | Type | What it does |
+|---|---|---|---|---|
+| `digit_0_target` | Digit 0 override | *(empty)* | entity (scene, automation) |   |
+| `digit_1_target` | Digit 1 override | *(empty)* | entity (scene, automation) |   |
+| `digit_2_target` | Digit 2 override | *(empty)* | entity (scene, automation) |   |
+| `digit_3_target` | Digit 3 override | *(empty)* | entity (scene, automation) |   |
+| `digit_4_target` | Digit 4 override | *(empty)* | entity (scene, automation) |   |
+| `digit_5_target` | Digit 5 override | *(empty)* | entity (scene, automation) |   |
+| `digit_6_target` | Digit 6 override | *(empty)* | entity (scene, automation) |   |
+| `digit_7_target` | Digit 7 override | *(empty)* | entity (scene, automation) |   |
+| `digit_8_target` | Digit 8 override | *(empty)* | entity (scene, automation) |   |
+| `digit_9_target` | Digit 9 override | *(empty)* | entity (scene, automation) |   |

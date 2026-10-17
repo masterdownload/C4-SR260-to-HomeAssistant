@@ -25,7 +25,11 @@ label or manifest comparison as proof of physical behavior.
 | Thermostat only shows read-only targets | Confirm the entity reports valid targets, minimum/maximum and a positive temperature step, and is not off/unavailable; supported mode choices can turn an off thermostat back on |
 | Thermostat displays H/C but does not seem to heat or cool | H/C is the configured Heat/Cool mode, not active HVAC action; the package does not invent missing active-heating/cooling status |
 | Chosen Room row remains on screen | Check that blueprint and all quirks match v0.1 and `room_feedback` is off; the silent-choice implementation still needs physical confirmation |
-| No battery/LQI/RSSI value | Battery sensing is not implemented; diagnostic values can remain empty and are not by themselves proof the remote is offline |
+| Battery is unknown | The native Battery diagnostic waits for a valid passive `c4.zr.bl` report; no fake initial value or active poll is used. Other status attributes are not substituted |
+| Battery entity is missing | Load all matching updated quirks and fully restart; known SR-260 power classification is corrected so native ZHA can discover it. Check whether the entity was disabled manually |
+| LQI/RSSI is empty | Diagnostic values can remain empty and are not by themselves proof the remote is offline |
+| Media-key scene/automation repeats unexpectedly | Overrides run on short press only; inspect traces for duplicate automations or multiple real press events. Hold-only events do not repeat overrides |
+| A key no longer sends its remote command | A selected optional scene/automation override takes priority. Clear it to restore the command and its existing repeats |
 | `quirk_applied: false` despite working events | That flag was misleading in the reported setup; inspect actual device behavior, class/loading evidence and event flow |
 | No signal-bars icon | Its behavior is unresolved; use received events instead of the remote's icon as the connectivity check |
 | Update broke startup | Restore the prior known-good quirk files and configuration, then fully restart; see recovery before changing the Zigbee network |

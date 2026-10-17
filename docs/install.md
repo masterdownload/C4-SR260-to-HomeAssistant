@@ -208,6 +208,15 @@ per remote. Select the remote, then the entities you want to control.
 Keep menu names short and unique. Roku command names are defaults; other
 remote integrations may need different names.
 
+The optional media-key action sections accept a scene/automation instead of
+that key's command. Overrides run once on short press, never while held;
+empty preserves the command, and no remote entity is needed for an override.
+Use the [command reference](remote-commands.md) for integration-specific text.
+
+The native ZHA Battery diagnostic appears after the updated quirks load.
+It remains unknown until a valid passive battery report; do not treat unknown
+as empty or full. No battery polling/setup automation is required.
+
 Under **TV / streamer control**, choose **Volume display** for the optional
 Hash, Equals, Star or Marker styles. **Volume percentage precision** can show
 one decimal; its default is whole percentages. Existing choices stay unchanged.

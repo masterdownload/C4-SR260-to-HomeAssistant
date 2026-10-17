@@ -104,6 +104,16 @@ Roku Play and Pause both use `play` (toggle), Skip Back uses `replay`, and
 unmapped keys are ignored. Home Assistant must already control the target;
 this package does not pair an IR device or supply vendor codes.
 
+The four optional media-action sections cover navigation, playback,
+channel/page/color and digit keys. Select a scene or automation to replace a
+key's command on short press, even without a remote entity. Empty keeps the
+existing command. An override runs **once per press**: held events do not
+repeat it or send the underlying command. Existing command-only hold behavior,
+dedicated menus/shortcut/volume controls and menu-owned Select/Cancel remain.
+Invalid manual overrides are logged and ignored rather than sent to a different
+domain. See the [manual command-name reference](remote-commands.md) for current
+official Roku/Apple TV sources; there are no platform dropdowns or runtime downloads.
+
 Vol + / - / Mute use the selected media player. Held volume and selected
 navigation keys repeat. The header can show a number, a text bar or both.
 It uses the media player's reported state; a sleeping/off target or delayed
@@ -153,8 +163,34 @@ sanitizes delimiter characters that cannot safely appear in remote text.
 
 Color is quantized to the remote's palette (8 red levels, 8 green, 4 blue).
 **Text brightness scales the text color, not the LCD backlight.** No
-backlight/keypad brightness controls, Home Assistant battery sensor or native
+backlight/keypad brightness controls or native
 bottom volume bar are provided.
+
+## Battery diagnostics
+
+Each resolved SR-260 exposes ZHA's **native Battery sensor**, enabled by default
+with battery device class and Diagnostic category. It uses the passive
+`c4.zr.bl` battery-percent announcement only: valid hexadecimal 0-100% is
+converted to the standard Power Configuration half-percent units
+(`battery_percentage_remaining`, attribute `0x0021`). For example, `5f` is
+95%, stored as 190. No report means **unknown**, not an assumed 100%.
+
+Invalid/sentinel/out-of-range reports do not invent or replace values. Vendor
+status attribute 6, signal strength and unrelated telemetry are not battery
+sources. No aggressive polling or extra battery commands are added; values can
+remain unknown until the next legitimate announcement and stale while asleep.
+Existing Zigbee attribute caching retains the last valid report through restart.
+
+The SR-260's advertised mains-power flag is corrected only on its resolved
+host-side quirk so ZHA can discover the battery entity. The original descriptor,
+other Control4 devices, receiver-on-idle flag and firmware are untouched.
+This corrects ZHA's battery-device classification/availability policy; it is
+not a change to radio configuration. The protocol units are supported by the
+[upstream Battery Level gauge notes](https://github.com/naisbitt/zha-device-handlers/blob/2fe087c3edf64678015159716380f02dfafbbaf7/zhaquirks/control4/documentation/control4-sr260-remote-protocol.md).
+Native entity creation/enabled Diagnostic metadata was confirmed after restart
+on three remotes; values remained unknown without passive reports. Percentage
+updates/cache behavior are offline-verified, while physical reporting/
+calibration and newly selected key overrides remain separate checks.
 
 The automation runs in `parallel` mode, at most 10 concurrent runs. Additional
 runs beyond that bound are silently dropped by its configured mode settings.

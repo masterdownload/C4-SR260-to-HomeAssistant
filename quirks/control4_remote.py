@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Modified by masterdownload, 2026-10-17: correct only the resolved SR-260's
+# battery-power classification for native ZHA battery diagnostics.
+# Derived from pvanbaren/zha-device-handlers; see docs/attribution.md.
 """ZHA quirk for the Control4 C4-SR260 IR/Zigbee Remote (50 buttons).
 
 EP layout:
@@ -33,6 +37,7 @@ if _QUIRK_DIR not in sys.path:
 
 from zigpy.profiles import zha
 from zigpy.quirks import CustomDevice
+from zigpy.zdo.types import MACCapabilityFlags
 from zigpy.zcl.clusters.general import Identify, PowerConfiguration
 
 from zhaquirks.const import (
@@ -82,6 +87,15 @@ _REMOTE_CONTROL_DEVICE_TYPE = 0x0006
 
 class Control4SR260Remote(CustomDevice):
     """Control4 C4-SR260 IR/Zigbee remote (50 buttons + LCD)."""
+
+    def __init__(self, application, ieee, nwk, replaces):
+        super().__init__(application, ieee, nwk, replaces)
+        if self.node_desc is not None:
+            # The remote advertises mains power despite its batteries. Preserve
+            # receiver/end-device behavior and never mutate the raw descriptor.
+            self.node_desc = self.node_desc.replace(
+                mac_capability_flags=self.node_desc.mac_capability_flags & ~MACCapabilityFlags.MainsPowered,
+            )
 
     @classmethod
     def match(cls, device):

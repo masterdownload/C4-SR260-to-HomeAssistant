@@ -13,11 +13,13 @@ blueprint:
     * **List** key opens a **Room** menu: lights (on/off and dim), switches, fans, thermostats (single target or independent heat/cool targets, measured temperature and mode), blinds, plus scenes, scripts and automations. **Cancel** steps back one level. Room actions are silent by default.
     * Optional scene / automation on **Room Off**, **I / II / III**, **Prev** and **DVR**.
     * **Full remote**: D-pad, transport, digits, channel / page and colour keys go to a `remote` entity (the key names of Home Assistant's Roku integration by default). **Vol + / - / Mute** go to a media player.
+    * Optional **scene or automation overrides** for media keys run once on short press instead of sending a remote command. Empty overrides preserve commands and their existing hold repeats.
     * **When the remote is picked up** its screen gets a header (the room name, and the volume as a text bar on the second line), its clock is set, and your text colour and brightness are applied. The volume line is refreshed after every volume key.
 
     Version **v0.1** (in development, not released). Needs the quirk files of the same package version (the 15 files in the package's quirks folder): install them and restart Home Assistant first, then this blueprint.
     Keep names short (about 12 characters; the screen shows roughly 17-20 and the state is added after the name). Names must be unique, and the Watch, Listen and Room menu titles must all be different.
     While a menu is open the remote handles Up / Down / Select / Cancel itself.
+    Command-name reference (manual lookup only; nothing is downloaded at runtime): https://github.com/masterdownload/C4-SR260-to-HomeAssistant/blob/main/docs/remote-commands.md
   input:
     remote:
       name: SR-260 remote
@@ -364,6 +366,7 @@ blueprint:
       description: >-
         The command string sent to the remote entity for each key. The defaults are the key names of Home Assistant's Roku integration (up, select, back, home, reverse, forward, replay, channel_up ...).
         Leave a field empty to ignore that key. Other platforms use other spellings, e.g. Android TV DPAD_UP / MEDIA_PLAY.
+        Official integration examples and update sources: https://github.com/masterdownload/C4-SR260-to-HomeAssistant/blob/main/docs/remote-commands.md
       collapsed: true
       input:
         up_command:
@@ -513,6 +516,267 @@ blueprint:
           default: "Lit_#"
           selector:
             text:
+
+    navigation_actions_section:
+      name: Optional navigation-key actions
+      icon: mdi:gesture-tap-button
+      description: >-
+        A selected scene or automation replaces that key's command on short press, even without a remote entity.
+        It runs once per press; holding does not repeat the action or send the underlying command.
+        Empty keeps the command settings. Menu-owned navigation, Select and Cancel stay with the menu.
+      collapsed: true
+      input:
+        up_target:
+          name: Up override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        down_target:
+          name: Down override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        left_target:
+          name: Left override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        right_target:
+          name: Right override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        select_target:
+          name: Select / OK override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        cancel_target:
+          name: Cancel / Back override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        home_target:
+          name: Control4 / Home override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        menu_target:
+          name: Menu override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        info_target:
+          name: Info override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        guide_target:
+          name: Guide override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+
+    playback_actions_section:
+      name: Optional playback-key actions
+      icon: mdi:play-pause
+      description: >-
+        Scene/automation overrides run once on short press, never repeatedly while held.
+        Empty keeps the existing remote-command text. Dedicated Watch, Listen, List, Room Off and volume settings are unchanged.
+      collapsed: true
+      input:
+        play_target:
+          name: Play override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        pause_target:
+          name: Pause override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        stop_target:
+          name: Stop override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        skip_back_target:
+          name: Skip back override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        skip_forward_target:
+          name: Skip forward override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        rewind_target:
+          name: Rewind override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        fast_forward_target:
+          name: Fast forward override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        record_target:
+          name: Record override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+
+    extra_actions_section:
+      name: Optional channel, page and color actions
+      icon: mdi:remote
+      description: Empty preserves the command. A scene/automation override runs once per press and suppresses command repeats while held.
+      collapsed: true
+      input:
+        page_up_target:
+          name: Page up override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        page_down_target:
+          name: Page down override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        channel_up_target:
+          name: Channel up override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        channel_down_target:
+          name: Channel down override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        red_target:
+          name: Red override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        green_target:
+          name: Green override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        yellow_target:
+          name: Yellow override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        blue_target:
+          name: Blue override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        star_target:
+          name: Star (*) override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        hash_target:
+          name: Hash (#) override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+
+    digit_actions_section:
+      name: Optional digit-key actions
+      icon: mdi:numeric
+      description: Each selected scene/automation runs once on that digit's short press. Empty keeps the Digits 0-9 command template.
+      collapsed: true
+      input:
+        digit_0_target:
+          name: Digit 0 override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        digit_1_target:
+          name: Digit 1 override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        digit_2_target:
+          name: Digit 2 override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        digit_3_target:
+          name: Digit 3 override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        digit_4_target:
+          name: Digit 4 override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        digit_5_target:
+          name: Digit 5 override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        digit_6_target:
+          name: Digit 6 override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        digit_7_target:
+          name: Digit 7 override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        digit_8_target:
+          name: Digit 8 override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
+        digit_9_target:
+          name: Digit 9 override
+          default: ""
+          selector:
+            entity:
+              domain: [scene, automation]
 
 mode: parallel
 max: 10
@@ -702,6 +966,45 @@ variables:
     star: !input star_command
     hash: !input hash_command
   digit_template: !input digit_command_template
+  media_key_targets:
+    up: !input up_target
+    down: !input down_target
+    left: !input left_target
+    right: !input right_target
+    select: !input select_target
+    cancel: !input cancel_target
+    control4: !input home_target
+    menu: !input menu_target
+    info: !input info_target
+    guide: !input guide_target
+    play: !input play_target
+    pause: !input pause_target
+    stop: !input stop_target
+    skip_back: !input skip_back_target
+    skip_forward: !input skip_forward_target
+    reverse: !input rewind_target
+    forward: !input fast_forward_target
+    record: !input record_target
+    page_up: !input page_up_target
+    page_down: !input page_down_target
+    channel_up: !input channel_up_target
+    channel_down: !input channel_down_target
+    red: !input red_target
+    green: !input green_target
+    yellow: !input yellow_target
+    blue: !input blue_target
+    star: !input star_target
+    hash: !input hash_target
+    digit_0: !input digit_0_target
+    digit_1: !input digit_1_target
+    digit_2: !input digit_2_target
+    digit_3: !input digit_3_target
+    digit_4: !input digit_4_target
+    digit_5: !input digit_5_target
+    digit_6: !input digit_6_target
+    digit_7: !input digit_7_target
+    digit_8: !input digit_8_target
+    digit_9: !input digit_9_target
   # Keys that keep repeating while held (the remote re-sends them while held). Everything else acts once per press.
   repeat_keys:
     - up
@@ -721,6 +1024,8 @@ variables:
   sel_index: "{{ (args.get('selected_index', -1) | int(-1)) if trigger.id in ['menu', 'menu_cancel'] else -1 }}"
   sel_item: "{{ (args.get('item') or '') if trigger.id == 'menu' else '' }}"
   key_target: "{{ (key_targets.get(button) or '') if trigger.id == 'press' else '' }}"
+  media_key_target: "{{ media_key_targets.get(button) or '' }}"
+  media_key_valid: "{{ media_key_target is string and (media_key_target | regex_findall('^(?:scene|automation)[.][a-z0-9_]+$') | length) == 1 }}"
   cmd: >-
     {% if button.startswith('digit_') %}
       {{ (digit_template | replace('{n}', button[6:])) if digit_template else '' }}
@@ -858,11 +1163,13 @@ variables:
       {% elif button == 'list' and (room_list | length) > 0 %}{% set ns.s = 'open_room' %}
       {% elif key_target != '' %}{% set ns.s = 'key_run' %}
       {% elif button in ['volume_up', 'volume_down', 'volume_mute'] and volume_target != '' %}{% set ns.s = 'volume' %}
+      {% elif media_key_target != '' %}
+       {% set ns.s = 'media_override' if media_key_valid else 'media_override_invalid' %}
       {% elif remote_target != '' and (cmd | string | trim) != '' %}{% set ns.s = 'remote_key' %}
       {% endif %}
     {% elif trigger.id == 'hold' %}
       {% if button in ['volume_up', 'volume_down'] and volume_target != '' %}{% set ns.s = 'volume' %}
-      {% elif button in repeat_keys and remote_target != '' and (cmd | string | trim) != '' %}{% set ns.s = 'remote_key' %}
+      {% elif button in repeat_keys and media_key_target == '' and remote_target != '' and (cmd | string | trim) != '' %}{% set ns.s = 'remote_key' %}
       {% endif %}
     {% elif trigger.id == 'menu' %}
       {% if (sel_title | string) == (watch_title | string) %}
@@ -885,6 +1192,7 @@ variables:
     {% if situation == 'run_watch' %}{{ watch_list[sel_index].target }}
     {%- elif situation == 'run_listen' %}{{ listen_list[sel_index].target }}
     {%- elif situation == 'key_run' %}{{ key_target }}
+    {%- elif situation == 'media_override' %}{{ media_key_target }}
     {%- elif situation == 'room_run' %}{{ pick_entity }}
     {%- endif %}
   run_label: >-
@@ -1071,6 +1379,14 @@ actions:
             show_selection: "{{ menu_show_selection }}"
 
   # 3. Run a scene / script / automation, or control a room device.
+  - if:
+      - "{{ situation == 'media_override_invalid' }}"
+    then:
+      - action: system_log.write
+        data:
+          level: warning
+          logger: blueprints.control4_sr260
+          message: "Ignored invalid SR-260 override for {{ button }}: choose a scene or automation."
   - if:
       - "{{ (svc | string | trim) != '' }}"
     then:

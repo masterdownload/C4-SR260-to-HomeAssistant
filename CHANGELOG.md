@@ -4,6 +4,14 @@
 
 Experimental initial standalone package, not a stable release.
 
+- Optional scene/automation overrides for all configurable media keys and
+  digits, once per short press; empty selections preserve command text and
+  existing command repeats. Added a manual official-source command reference,
+  not platform presets or runtime downloads.
+- Native ZHA Battery diagnostics from valid passive battery-percent reports,
+  unknown before data, with standard half-percent scaling and cache retention.
+  Correct only the resolved SR-260's misleading mains-power flag; no polling,
+  firmware changes or guesses from unrelated status attributes.
 - Experimental controller identity-response form before report/MTORR for
   verified/cached SR-260s, with unchanged existing identity values/endpoints.
   The earlier report/MTORR-only physical attempt did not restore key traffic;
@@ -14,7 +22,8 @@ Experimental initial standalone package, not a stable release.
 - Added bounded controller identity-report then MTORR registration for verified/
   cached SR-260s, including reset/rejoin. It uses existing helpers/values, logs
   failures, and does not broadcast on unverified models or each key press.
-  Physical key/menu operational acceptance remains pending.
+  This earlier report/MTORR-only form did not restore the replacement's key
+  traffic; it was superseded by the response-first form above.
 - Added strict parsing for the captured manufacturer-`0x1040` cluster-command-1
   identity frame. This adds identity coverage without new outbound commands;
   it is not a fix or acceptance claim for missing physical key/menu traffic.
