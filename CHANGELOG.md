@@ -4,11 +4,20 @@
 
 Experimental initial standalone package, not a stable release.
 
+- Corrected the automatic-discovery cold-start trigger to handle validated
+  Device Announce traffic before private-profile identity polls exist.
+  Announcement/prefix only permits a bounded query, never model inference.
+  Recognition still requires a validated identity response; physical acceptance
+  is not claimed from a query or successful restart alone. One already-paired
+  unknown remote subsequently supplied that response and was automatically
+  recognized with its quirk/key triggers exposed, without manual seeding or
+  re-pairing. Fresh first-join and physical key/menu behavior remain separate checks.
 - Automatic SR-260 identity learning from validated model traffic, with bounded
   probes and device-lifecycle activation for new or already-paired unknown
   remotes. Atomic model persistence replaces routine manual cache seeding on
   supported versions; wake/pairing and an initial quirk-load restart are still
-  required. Physical acceptance pending; the manual method remains a fallback.
+  required. The manual method remains a fallback; see the capture-driven
+  already-paired acceptance above for the physically verified scope.
 - Fixed thermostat range menus: independent Heat/Cool targets, clear measured
   temperature and marked supported modes; safe limits, fractional/negative
   steps and stale-selection handling. Single-target controls remain available.

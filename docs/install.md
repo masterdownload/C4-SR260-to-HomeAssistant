@@ -58,6 +58,12 @@ the device should show **Control4 / C4-SR260**, with its key triggers available.
 Listen to `zha_event` and press a key. The model mapping is saved automatically
 in `/config/.storage/c4_quirk_data.json`; keep existing mappings and back it up.
 
+Some unclassified remotes initially send only a Zigbee Device Announce and
+advertise a generic endpoint. After normal Zigbee join handling, a validated
+announcement from an unknown Control4-prefix device may trigger the bounded
+controller/model query. The prefix permits that query only; it never supplies
+the model. Without a valid identity response the remote remains unknown.
+
 For an already-paired unknown remote, install the updated files and perform the
 required full Home Assistant restart, then wake the remote. It can be recognized
 without deleting or rejoining. No additional restart is normally needed once a
@@ -73,9 +79,12 @@ network. A restart after learning a model is a fallback on unsupported versions,
 not the normal new-remote workflow.
 
 Offline coverage uses zigpy 2.2.0 and ZHA/zha-quirks 2.2.2. It checks strict
-unwrapped ZCL identity frames on profile `0xC25D`, cluster 1, endpoint 2; exact
-historical packet bytes and other wrappers were not available for verification.
-Physical automatic-onboarding acceptance is pending.
+unwrapped ZCL identity frames on profile `0xC25D`, cluster 1, endpoint 2,
+including the actual model-read response captured during a successful physical
+check. One already-paired unknown SR-260 was identified, cached and activated
+after waking, without manual seeding, delete/rejoin or a restart after identity
+learning. A brand-new first join remains offline-tested, not physically proven.
+Other wrappers, firmware and lifecycle versions remain unverified.
 
 Recognition does not transfer an old remote's automation settings to a different
 IEEE/device. Select the intended device when creating or updating an automation.

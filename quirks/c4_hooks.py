@@ -31,6 +31,8 @@ import os
 import sys
 import time
 
+from zigpy.types import AddrMode, EUI64, NWK
+
 _QUIRK_DIR = os.path.dirname(os.path.abspath(__file__))
 if _QUIRK_DIR not in sys.path:
     sys.path.insert(0, _QUIRK_DIR)
@@ -124,11 +126,14 @@ def _sr260_start_activation(device):
     device._c4_sr260_activation = _sr260_schedule(device, "c4_sr260_activate", _sr260_activate(device))
 
 
-async def _sr260_identity_poll(device, header):
-    await C4._c4_send_controller_identity(device, source="sr260_discovery_poll", zcl_seq=header.tsn)
-    if getattr(device, "_c4_sr260_probes", 0) >= 3:
-        return
+async def _sr260_identity_poll(device, header=None):
     device._c4_sr260_probes = getattr(device, "_c4_sr260_probes", 0) + 1
+    if header is None:
+        await C4._c4_report_controller_identity(
+            device, source="sr260_discovery_announce", zcl_seq=device.get_sequence(),
+        )
+    else:
+        await C4._c4_send_controller_identity(device, source="sr260_discovery_poll", zcl_seq=header.tsn)
     sequence = device.get_sequence()
     device._c4_sr260_query = sequence
     await device.request(
@@ -138,6 +143,48 @@ async def _sr260_identity_poll(device, header):
     _LOGGER.debug("C4: requested identity attribute for an unclassified Control4 device")
     if device._c4_sr260_probes == 3:
         _LOGGER.warning("C4: final automatic identity probe sent; if still unknown, inspect ZHA logs and wake/reconfigure the device")
+
+
+def _sr260_start_probe(device, header=None):
+    task = getattr(device, "_c4_sr260_poll", None)
+    last = getattr(device, "_c4_sr260_poll_at", float("-inf"))
+    if (task is not None and not task.done()) or time.monotonic() - last < 30:
+        return
+    if getattr(device, "_c4_sr260_probes", 0) >= 3:
+        return
+    device._c4_sr260_poll_at = time.monotonic()
+    device._c4_sr260_poll = _sr260_schedule(device, "c4_sr260_identity_probe", _sr260_identity_poll(device, header))
+
+
+def _sr260_announced(application, packet, previous):
+    """An announce permits a bounded query, never classification or cache seeding."""
+    if (packet.profile_id, packet.cluster_id, packet.src_ep, packet.dst_ep) != (0, 0x0013, 0, 0):
+        return
+    if packet.src is None or packet.src.addr_mode != AddrMode.NWK:
+        return
+    raw = packet.data.serialize() if hasattr(packet.data, "serialize") else bytes(packet.data)
+    if len(raw) != 12:
+        return
+    nwk, remaining = NWK.deserialize(raw[1:])
+    ieee, remaining = EUI64.deserialize(remaining)
+    if nwk != packet.src.address or not 0 < nwk < 0xFFF8 or len(remaining) != 1:
+        return
+    if previous is not None and previous.ieee != ieee:
+        return
+    try:
+        device = application.get_device_with_address(packet.src)
+    except KeyError:
+        return
+    if device.ieee != ieee or device.nwk != nwk:
+        return
+    key = str(ieee).lower()
+    if not key.startswith(C4_IEEE_PREFIX):
+        return
+    if device.model and device.model not in _INVALID_MODELS:
+        return
+    if get_model_from_ieee(key) not in (None, ""):
+        return
+    _sr260_start_probe(device)
 
 
 async def _sr260_ack_identity(device, header):
@@ -167,11 +214,7 @@ def _sr260_discovery(device, packet):
         if not requested or not set(requested) <= {8, 9, 10}:
             return False
         device.last_seen = time.time()
-        last = getattr(device, "_c4_sr260_poll_at", float("-inf"))
-        task = getattr(device, "_c4_sr260_poll", None)
-        if (task is None or task.done()) and time.monotonic() - last >= 30:
-            device._c4_sr260_poll_at = time.monotonic()
-            device._c4_sr260_poll = _sr260_schedule(device, "c4_sr260_identity_poll", _sr260_identity_poll(device, header))
+        _sr260_start_probe(device, header)
         return True
     if command == 1:
         if header.tsn != getattr(device, "_c4_sr260_query", None):
@@ -623,6 +666,14 @@ try:
         _original_packet_received = _ZigpyApp.packet_received
 
         def _c4_patched_packet_received(self, packet):
+            if (packet.profile_id, packet.cluster_id, packet.src_ep, packet.dst_ep) == (0, 0x0013, 0, 0):
+                try:
+                    previous = self.get_device_with_address(packet.src)
+                except KeyError:
+                    previous = None
+                result = _original_packet_received(self, packet)
+                _sr260_announced(self, packet, previous)
+                return result
             if packet.profile_id in C4_PROFILES and packet.src_ep != 0:
                 try:
                     device = self.get_device_with_address(packet.src)

@@ -9,7 +9,11 @@ After pairing and waking, a verified SR-260 model attribute can activate the
 remote quirk and refresh ZHA without routine manual cache edits or a second
 restart. Already-paired unknown devices use the same path. This relies on actual
 identity traffic and supported zigpy/ZHA lifecycle APIs, not an IEEE-prefix
-guess. The implementation is offline-tested; physical acceptance is pending.
+guess. One already-paired unknown remote was physically recognized after wake,
+with its model cached automatically and quirk/key triggers exposed. Brand-new
+first joins remain offline-tested; physical keys/menus are a separate check.
+Validated Device Announce traffic can start a bounded query for an unknown
+Control4-prefix device; that announcement alone never classifies it.
 See [installation limits and fallback](install.md#3-check-automatic-recognition).
 
 ## Events and keys

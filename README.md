@@ -50,6 +50,8 @@ quirk update and full restart; deletion/re-pairing is not the first step.
 Automatic recognition is experimental and needs real device traffic; a sleeping
 remote cannot identify itself. If it stays unknown, follow
 [recognition checks and manual fallback](docs/install.md#3-check-automatic-recognition).
+Recognition without manual seeding or re-pairing was physically confirmed on
+one already-paired unknown remote; brand-new first joins remain offline-tested.
 
 **5. Install the blueprint.** Copy the downloaded YAML to:
 

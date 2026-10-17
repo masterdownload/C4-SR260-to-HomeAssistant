@@ -41,6 +41,12 @@ device or infer its model from `00:0f:ff`. Limits and compatibility are in
 [recognition checks](install.md#3-check-automatic-recognition). This also does
 not migrate an automation from an old remote to a newly paired replacement.
 
+If a capture shows only Device Announce and no private-profile identity poll,
+use the updated announce-trigger hook; the first discovery implementation
+missed this cold-start path. Normal Zigbee join processing still runs first,
+and a model response is required before activation. A transmitted query alone
+is not evidence of successful recognition.
+
 ## Pairing and reset uncertainty
 
 C4 pressed four times is the confirmed identify sequence. Reset recipes for
