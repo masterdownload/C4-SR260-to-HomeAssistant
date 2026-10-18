@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Modified by masterdownload, 2026-10-17: validated SR-260 discovery before
-# quirk application, bounded identity probes and ZHA device lifecycle promotion.
+# quirk application, bounded probes, expiring registration retries and lifecycle promotion.
 # Derived from pvanbaren/zha-device-handlers; see docs/attribution.md.
 """Monkey-patches installed at import time for all C4 devices.
 
@@ -128,7 +128,7 @@ def _sr260_start_activation(device):
 
 async def _sr260_register(device, source):
     try:
-        _LOGGER.warning("C4 SR-260 EXPERIMENTAL controller identity response before registration; physical key verification required")
+        _LOGGER.warning("C4 SR-260 %s EXPERIMENTAL controller identity response before registration (%s); physical key verification required", device.ieee, source)
         if not await C4._c4_send_controller_identity(
             device, source="sr260_experimental_registration", zcl_seq=device.get_sequence(),
         ):
@@ -149,7 +149,7 @@ async def _sr260_register(device, source):
 
 
 def _sr260_start_registration(device, source):
-    """One in-flight exchange; at most two attempts per IEEE/NWK, 60 seconds apart."""
+    """Two attempts 60 seconds apart; renew after 15 quiet minutes or a new NWK."""
     model = device.model
     cached = get_model_from_ieee(str(device.ieee))
     if model not in (None, "C4-SR260", *_INVALID_MODELS) or cached not in (None, "C4-SR260"):
@@ -165,13 +165,18 @@ def _sr260_start_registration(device, source):
         state = states[device.ieee] = {"task": None, "last": float("-inf"), "nwk": device.nwk, "attempts": 0}
     if state["task"] is not None and not state["task"].done():
         return
-    if time.monotonic() - state["last"] < 60:
+    now = time.monotonic()
+    elapsed = now - state["last"]
+    if elapsed < 60:
         return
-    if state["nwk"] != device.nwk:
+    if state["nwk"] != device.nwk or elapsed >= 15 * 60:
+        if state["attempts"] >= 2:
+            _LOGGER.info("C4 SR-260 %s registration retry budget renewed on announcement/identity; previous exchange is not proof of operation", device.ieee)
         state["nwk"], state["attempts"] = device.nwk, 0
     if state["attempts"] >= 2:
+        _LOGGER.debug("C4 SR-260 %s registration burst limit reached; retry eligible in %.0f seconds on a later announcement", device.ieee, 15 * 60 - elapsed)
         return
-    state["last"] = time.monotonic()
+    state["last"] = now
     state["attempts"] += 1
     state["task"] = _sr260_schedule(device, "c4_sr260_register", _sr260_register(device, source))
 
@@ -293,7 +298,6 @@ def _sr260_discovery(device, packet):
         _LOGGER.warning("C4 SR-260 identity conflicts with the stored device model; refusing automatic replacement")
         return True
     if active:
-        _sr260_start_registration(device, "sr260_verified_identity")
         if command in (2, 3):
             _sr260_schedule(device, "c4_sr260_identity_ack", _sr260_ack_identity(device, header))
             return True

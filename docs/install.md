@@ -141,9 +141,15 @@ media action. Unknown Control4-prefix devices do not trigger MTORR merely from
 their address or an announcement. Their model must be verified first.
 
 Registration has a separate bound from model queries: one in-flight exchange,
-at least 60 seconds between attempts, and at most two attempts for the same
-IEEE/network address per process. A changed network address can get a new
-bounded attempt after the cooldown. Cached SR-260 reset/rejoins can register
+at least 60 seconds between attempts, and at most two attempts per burst.
+After 15 quiet minutes since the last attempt, a later valid announcement
+renews the budget even for the same IEEE/network address. A changed network
+address can also renew it after the cooldown. No timer retries automatically;
+normal identity/status traffic on an already-active remote does not register
+again. Failed/cancelled attempts still count, and a completed exchange does
+not prove that keys work or erase the burst limit. The earlier per-process
+two-attempt lifetime cap could leave a later announcement unable to recover.
+Cached SR-260 reset/rejoins can register
 without exhausting or depending on the unknown-model query budget.
 
 This sequence follows the upstream author's

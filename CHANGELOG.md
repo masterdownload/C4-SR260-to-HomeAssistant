@@ -4,6 +4,12 @@
 
 Experimental initial standalone package, not a stable release.
 
+- Fixed registration recovery's two-attempt process-lifetime lockout: keep
+  60-second cooldown/two-attempt bursts, but renew on a later announcement
+  after 15 quiet minutes, or a changed network address after cooldown.
+  Already-active identity/status traffic does not re-register. Preserve the
+  existing response/report/MTORR sequence and all blueprint/battery behavior.
+  Later physical recovery remains separate from offline regression evidence.
 - Dual-target thermostat Heat/Cool rows now open a picker with five reported
   steps below and five above the target, omitting the current value. Filter
   unsafe choices without clamping; Cancel returns one level without a write.

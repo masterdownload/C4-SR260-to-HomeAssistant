@@ -43,7 +43,7 @@ Compared with the pinned pvanbaren source after normalizing CRLF to LF:
 | File | Changes |
 |---|---|
 | `c4_helpers.py` | defjam903 button-constant fallback; raw-frame grammar, length checks and sequence construction; strict global/captured-vendor SR-260 identity parsing; atomic model persistence; explicit identity-send results and actual EZSP/ZNP status checking; prominent source/modification notice |
-| `c4_hooks.py` | Strict pre-quirk SR-260 discovery, validated announce probing, safe raw-device lifecycle promotion and ZHA refresh; bounded verified/cached SR-260 response-first Report/MTORR registration; preserve other-device/normal initialization routing; prominent modification notice |
+| `c4_hooks.py` | Strict pre-quirk SR-260 discovery, validated announce probing, safe raw-device lifecycle promotion and ZHA refresh; response-first registration with expiring recovery budget, cooldown and active-status suppression; preserve other-device/normal initialization routing; prominent modification notice |
 | `c4_button_cluster.py` | Send/reply/announce/frame/failure diagnostics; bounded probe window; unhandled-frame reporting; silent selection handling; screen announcements; passive validated battery-percent updates to standard PowerConfiguration; prominent modification notice |
 | `c4_display_cluster.py` | Raw-send command; `show_selection`; header, clock and text-color commands; prominent modification notice |
 | `control4_remote.py` | Clone the resolved SR-260 node descriptor and clear only its incorrect mains-power bit for native battery diagnostics; preserve raw descriptor and other flags; prominent modification notice |

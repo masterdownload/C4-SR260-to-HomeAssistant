@@ -66,6 +66,16 @@ The response-first form enabled actual keys/menus on one observed replacement,
 and its wake header was owner-confirmed. Do not confuse that scoped acceptance
 with a guarantee of uncached first joins or all v0.1 behavior.
 
+If a recognized remote later emits only Device Announce, an earlier hook's
+two-attempt process-lifetime registration cap could suppress recovery for
+hours at the same network address. The recovery revision keeps the 60-second
+cooldown and two-attempt burst, but renews eligibility after 15 quiet minutes
+on a later valid announcement. It does not run a retry timer or register on
+every key/status packet. Back up and install the updated quirk, then perform
+one full HA restart; changing the blueprint alone cannot fix missing events.
+This gap is reproduced offline; actual later physical recovery must be checked
+separately. Do not assume it explains every radio or reachability failure.
+
 ## Pairing and reset uncertainty
 
 C4 pressed four times is the confirmed identify sequence. Reset recipes for
