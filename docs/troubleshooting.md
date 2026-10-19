@@ -24,7 +24,11 @@ label or manifest comparison as proof of physical behavior.
 | Wrong menu opens or selection runs wrong row | Use distinct menu titles and unique short row labels; compare saved inputs and automation trace |
 | Thermostat only shows read-only targets | Confirm the entity reports valid targets, minimum/maximum and a positive temperature step, and is not off/unavailable; supported mode choices can turn an off thermostat back on |
 | Thermostat displays H/C but does not seem to heat or cool | H/C is the configured Heat/Cool mode, not active HVAC action; the package does not invent missing active-heating/cooling status |
-| Heat/Cool picker has fewer than ten rows or no valid temperatures | The ten offsets exclude the current value; bounds, the opposite endpoint or unrepresentable values remove choices without clamping, duplication or backfill |
+| Set/Heat/Cool picker has fewer than eleven rows | Bounds, the opposite range endpoint or unrepresentable values remove alternatives without clamping/duplication/backfill; the marked current row is read-only and initially selected |
+| Choosing the marked current row does nothing | Intentional: it reopens the same picker without a thermostat command. Choose another numeric row to change the target |
+| Single thermostat still shows Warmer/Cooler | Update the blueprint and reload automations while preserving saved inputs; the consistent picker uses Set. No quirk restart is needed for this blueprint-only update |
+| Temperature numbers look right but the unit is wrong | Set Room controls > Temperature unit to match HA in each automation. Celsius is the default; labels are manual, not detection or conversion. Fahrenheit installs must select Fahrenheit explicitly |
+| Degree symbol looks unexpected | Latin-1 transmission is tested; the remote's font glyph is not physically verified. Do not infer temperature conversion from the symbol |
 | A thermostat selection refreshes without changing the target | Its target/mode/step/limits or room layout may have changed. Reopen with List; do not reuse an old picker. Room names must be unique. Routing tags are intentional |
 | Chosen Room row remains on screen | Check that blueprint and all quirks match v0.1 and `room_feedback` is off; the silent-choice implementation still needs physical confirmation |
 | Battery is unknown | The native Battery diagnostic waits for a valid passive `c4.zr.bl` report; no fake initial value or active poll is used. Other status attributes are not substituted |

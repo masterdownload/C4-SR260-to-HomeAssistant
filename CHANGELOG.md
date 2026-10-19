@@ -4,6 +4,17 @@
 
 Experimental initial standalone package, not a stable release.
 
+- Single-target thermostats now use **Set N -> ten temperature choices**, just
+  like range Heat/Cool targets, replacing Warmer/Cooler. Both include a marked
+  read-only current row between five lower and five higher choices (up to
+  eleven rows), initially selected. Selecting current refreshes the picker
+  without a command. Filter bounds and reject stale choices with a final live check. Off remains
+  read-only until a supported mode is explicitly selected; no auto-enable.
+  Added a manual Temperature unit setting (Celsius default, Fahrenheit option);
+  match HA explicitly. Labels only, no detection/conversion. Degree-byte
+  encoding is tested, physical glyph appearance is unverified.
+  Blueprint-only update; prior inputs/mappings and all quirks unchanged. Physical acceptance
+  of the consistent single-target picker is not yet claimed.
 - Fixed registration recovery's two-attempt process-lifetime lockout: keep
   60-second cooldown/two-attempt bursts, but renew on a later announcement
   after 15 quiet minutes, or a changed network address after cooldown.

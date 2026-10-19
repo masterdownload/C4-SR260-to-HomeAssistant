@@ -68,50 +68,74 @@ within 22 characters. No active-heating/cooling status is invented.
 For a Heat/Cool thermostat with targets 69 and 76, the submenu contains:
 
 ```text
-Heat 69
-Cool 76
-Now 73
+Heat 69°F
+Cool 76°F
+Now 73°F
 * Heat/Cool
 Off
 ```
 
-Select **Heat 69** to open a temperature picker. With a reported step of 1,
-its ten choices are **64, 65, 66, 67, 68, 70, 71, 72, 73, 74**: five steps
-below and five above, omitting the current 69. A step of 0.5 offers
-66.5-68.5 and 69.5-71.5. Signed and fractional temperatures are supported.
+Set **Room controls > Temperature unit** to match the unit shown in Home
+Assistant: **Celsius (default)** or **Fahrenheit**. This setting is **label
+only**, not automatic detection or temperature conversion. Existing
+Fahrenheit installations must explicitly select Fahrenheit when updating;
+otherwise the new labels default to Celsius while the numeric values stay
+unchanged. These examples have Fahrenheit selected.
 
-Limits and the opposite endpoint can leave **fewer than ten choices**; invalid
-values are removed, never clamped, duplicated or backfilled. An empty range
-shows a read-only **No valid temperatures** row. Opening a picker, selecting
+Select **Heat 69** to open a temperature picker. With a reported step of 1,
+its rows are **64, 65, 66, 67, 68, 69 (current), 70, 71, 72, 73, 74**:
+five steps below and five above plus the current setpoint. The picker opens
+with **69°F (current)** selected. Every row includes the selected unit. A
+step of 0.5 offers 66.5-68.5 and 69.5-71.5
+around **69 (current)**. Signed and fractional temperatures are supported.
+
+Single-target thermostats use the same interaction: choose **Set 75** to
+open **70, 71, 72, 73, 74, 75 (current), 76, 77, 78, 79, 80** with step 1. This
+replaces Warmer/Cooler. Selecting 76 sends only `temperature: 76`; it does not
+send range endpoints or change HVAC mode.
+With Celsius selected, a 23.5 target is labeled **23.5°C (current)**; the
+value sent remains 23.5, not a converted number. Unit changes invalidate an
+old picker, just like a changed target or step.
+
+The existing menu encoder can send the degree symbol as one Latin-1 byte.
+Its actual appearance in the remote's font is **not physically verified**;
+successful encoding is not proof of the displayed glyph.
+
+There are **up to eleven rows**. Limits and the opposite endpoint can leave
+fewer alternatives; invalid values are removed, never clamped, duplicated or
+backfilled. The current row stays read-only and initially selected, even when
+no alternative is valid. Selecting it reopens the same picker at the current
+row without changing temperature. Opening a picker, selecting
 `Now`, or pressing **Cancel** does not change the thermostat. Cancel returns
 from picker to thermostat menu, then from thermostat to Room.
 
 Choosing a value changes only the selected target. Range service calls include
 both endpoints, preserving the opposite endpoint's current live reported value.
 The existing safety contract is low <= high; no unreported minimum gap is
-invented. Single-target thermostats retain **Warmer (set N)** and
-**Cooler (set N)**, unchanged.
+invented. Both single and range targets use the same picker validation.
 After the menu refresh delay, targets/mode/limits/step are read again immediately
 before the service call. A conflicting change cancels the write and logs a
 warning; a still-valid opposite endpoint is preserved at its latest value.
 
 `Now` is read-only. `*` marks the configured mode; only modes reported as
-supported are offered. An off thermostat keeps targets read-only while allowing
-a supported mode to be selected. Missing/invalid targets, limits or a positive
+supported are offered. An off thermostat keeps targets read-only: explicitly
+select a supported mode, such as Heat, before opening Set or Heat/Cool.
+Picking a temperature never silently enables heating. Missing/invalid targets, limits or a positive
 step disable temperature adjustments rather than guessing values. Unknown or
 unavailable thermostats cannot be controlled from these menus. Stale or
 unrecognized choices are rejected/logged without a thermostat write; reopen
 with List if the entity or room layout changed. Compact routing tags in
 thermostat titles bind each menu to its entity/layout and picker snapshot,
 within the 22-character title budget. Keep room names unique.
-For example, the picker caption can look like `Heat#12345678.90abcdef`;
+For example, the picker caption can look like `Heat#12345678.90abcdef`
+or `Set#12345678.90abcdef`;
 the visible suffix is a routing tag, not a temperature. Choices are the numeric rows.
 
 A changed selected target, mode, step or limits invalidates an old picker.
 Measured-temperature updates do not invalidate it; a changed opposite target
 is rechecked live. After choosing a target, allow the integration to report its
 new state before opening another picker. Numeric choices that cannot be
-represented safely in the display format are omitted rather than rounded
+represented safely within 24 row characters are omitted rather than rounded
 into an unintended command.
 
 Values use the thermostat's reported temperature units. Refreshed adjustment

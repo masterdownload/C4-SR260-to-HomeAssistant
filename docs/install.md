@@ -228,11 +228,20 @@ Under **TV / streamer control**, choose **Volume display** for the optional
 Hash, Equals, Star or Marker styles. **Volume percentage precision** can show
 one decimal; its default is whole percentages. Existing choices stay unchanged.
 
-Thermostat rows show measured temperature and mode. Heat/Cool thermostats have
-separate Heat and Cool rows that open ten-choice temperature pickers: five
-reported steps below and five above, omitting the current target. Bounds can
-leave fewer choices. Cancel returns one level without applying a temperature.
-Single-target thermostats keep Warmer/Cooler. `*` marks the configured mode.
+Thermostat rows show measured temperature and mode. Single-target thermostats
+offer Set; range thermostats offer Heat and Cool. Each opens the same
+temperature picker: five reported steps below, the setpoint marked
+**(current)**, and five above (up to eleven rows). It opens on the read-only
+current row; selecting that row refreshes the same picker without applying
+anything. Bounds can leave fewer alternatives. Cancel returns one level
+without applying a temperature.
+While off, targets remain read-only until you explicitly select a supported
+mode; temperature selection does not turn heating on. `*` marks the configured mode.
+Set **Room controls > Temperature unit** to the same unit Home Assistant
+displays. Both package copies default to Celsius; Fahrenheit installations
+must select Fahrenheit explicitly. This labels values only, with no detection
+or conversion. Check every room automation when upgrading. The degree glyph
+can be encoded but its physical appearance is not yet verified.
 See [thermostat controls](features.md#thermostats). For this picker update on an
 existing install, update only the blueprint and reload automations while
 preserving saved inputs; no quirk replacement or restart is required.

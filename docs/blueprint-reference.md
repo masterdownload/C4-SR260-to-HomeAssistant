@@ -1,6 +1,6 @@
 # Blueprint reference: Control4 SR-260 Room Remote v0.1 (menus, room controls, full remote, clock, volume)
 
-> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `489b67c30355`). No tools or tests need to be run to install the blueprint.
+> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `1ca9b225ae52`). No tools or tests need to be run to install the blueprint.
 
 Requires Home Assistant 2025.9.0 or newer. Run mode: `parallel` (up to 10 runs at once; extra runs are dropped silently).
 
@@ -60,11 +60,12 @@ Opened by the Listen key. Add one row per item.
 
 ## Room controls (List key) (`room_section`)
 
-Opened by the List key. Switches and fans toggle when chosen. Lights, thermostats and blinds open a small menu (Cancel goes back). Thermostats show measured temperature and supported modes. Each range Heat/Cool target opens five step choices below and five above its current value, omitting the current value; limits may leave fewer choices. Single-target Warmer/Cooler controls are unchanged. Scenes, scripts and automations run.
+Opened by the List key. Switches and fans toggle when chosen. Lights, thermostats and blinds open a small menu (Cancel goes back). Thermostats show measured temperature and supported modes. Set (single target) and Heat/Cool (range targets) each open five step choices below and five above the target plus a read-only "(current)" row, selected initially; limits may leave fewer choices. Targets are read-only while off; explicitly select a supported mode first. Scenes, scripts and automations run.
 
 | Input | Name | Default | Type | What it does |
 |---|---|---|---|---|
 | `room_title` | Menu title | `Room` | text |   |
+| `climate_temperature_unit` | Temperature unit | `C` | select | Label only: choose the same temperature unit shown by Home Assistant. No automatic detection or conversion. Defaults to Celsius; set Fahrenheit explicitly if HA shows Fahrenheit. The degree glyph is not physically verified. |
 | `room_items` | Items | *(no rows)* | list of rows: `label` = text, `entity` = entity (light, switch, input_boolean, fan, cover, climate, humidifier, valve, media_player, scene, script, automation) | Each row has a name (shown on the remote) and the thing it controls. |
 | `show_states` | Show the state after each name | on | on / off | e.g. "Floor Lamp 60%" or "Thermostat Now73 H/C". Climate names are shortened to fit the measured temperature and configured mode. |
 | `room_feedback` | Show a result message after a Room action | off | on / off | Off (default): the remote stays quiet and you see the light, fan or thermostat change. On: the screen also shows a short message such as "Floor Lamp: On", or "Running: Movie" for a scene. |

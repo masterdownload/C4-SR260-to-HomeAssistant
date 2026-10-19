@@ -10,7 +10,7 @@ blueprint:
     One automation per SR-260 remote (one per room). The remote's screen and keys become a room controller:
 
     * **Watch** and **Listen** keys open menus on the remote's screen. Add as many rows as you like; each row runs a **scene, script or automation**.
-    * **List** key opens a **Room** menu: lights (on/off and dim), switches, fans, thermostats (single-target controls or Heat/Cool temperature pickers, measured temperature and mode), blinds, plus scenes, scripts and automations. **Cancel** steps back one level. Room actions are silent by default.
+    * **List** key opens a **Room** menu: lights (on/off and dim), switches, fans, thermostats (Set or Heat/Cool temperature pickers, measured temperature and mode), blinds, plus scenes, scripts and automations. **Cancel** steps back one level. Room actions are silent by default.
     * Optional scene / automation on **Room Off**, **I / II / III**, **Prev** and **DVR**.
     * **Full remote**: D-pad, transport, digits, channel / page and colour keys go to a `remote` entity (the key names of Home Assistant's Roku integration by default). **Vol + / - / Mute** go to a media player.
     * Optional **scene or automation overrides** for media keys run once on short press instead of sending a remote command. Empty overrides preserve commands and their existing hold repeats.
@@ -176,8 +176,8 @@ blueprint:
       description: >-
         Opened by the List key. Switches and fans toggle when chosen. Lights, thermostats and blinds open a small menu
         (Cancel goes back). Thermostats show measured temperature and supported modes.
-        Each range Heat/Cool target opens five step choices below and five above its current value, omitting the current value; limits may leave fewer choices.
-        Single-target Warmer/Cooler controls are unchanged. Scenes, scripts and automations run.
+        Set (single target) and Heat/Cool (range targets) each open five step choices below and five above the target plus a read-only "(current)" row, selected initially; limits may leave fewer choices.
+        Targets are read-only while off; explicitly select a supported mode first. Scenes, scripts and automations run.
       collapsed: false
       input:
         room_title:
@@ -185,6 +185,20 @@ blueprint:
           default: Room
           selector:
             text:
+        climate_temperature_unit:
+          name: Temperature unit
+          description: >-
+            Label only: choose the same temperature unit shown by Home Assistant.
+            No automatic detection or conversion. Defaults to Celsius; set Fahrenheit
+            explicitly if HA shows Fahrenheit. The degree glyph is not physically verified.
+          default: C
+          selector:
+            select:
+              options:
+                - label: "\u00b0C"
+                  value: C
+                - label: "\u00b0F"
+                  value: F
         room_items:
           name: Items
           description: Each row has a name (shown on the remote) and the thing it controls.
@@ -789,6 +803,8 @@ variables:
   volume_target: !input volume_target
   show_volume: !input show_volume
   show_states: !input show_states
+  climate_temperature_unit: !input climate_temperature_unit
+  climate_unit_suffix: "{{ '\\u00b0' ~ climate_temperature_unit if climate_temperature_unit in ['C', 'F'] else '' }}"
   room_feedback: !input room_feedback
   show_header: !input show_header
   header_line2: !input header_line2
@@ -858,7 +874,7 @@ variables:
           {% set t = state_attr(e, 'current_temperature') | float(none) %}
           {% set measured = ('%g' | format(t | round(1))) if is_number(t) else '--' %}
           {% set mode = {'heat_cool': 'H/C', 'fan_only': 'Fan'}.get(s, s | title) %}
-          {% set sfx = ' Now' ~ measured ~ ' ' ~ mode %}
+          {% set sfx = ' Now' ~ measured ~ climate_unit_suffix ~ ' ' ~ mode %}
           {% set nm = nm[:([22 - (sfx | length), 0] | max)] %}
         {% elif d in ['cover', 'valve'] %}
           {% set sfx = ' ' ~ (s | title) %}
@@ -981,7 +997,7 @@ variables:
             {% set ns.matches = ns.matches + [{'idx': loop.index0, 'sub': true, 'label': r.label, 'entity': r.entity, 'domain': r.domain, 'key': r.key}] %}
           {% endif %}
           {% if r.domain == 'climate' %}
-            {% for kind in ['heat', 'cool'] %}
+            {% for kind in ['heat', 'cool', 'set'] %}
               {% set prefix = (kind | title) ~ '#' ~ r.key ~ '.' %}
               {% if (sel_title | string | regex_findall('^' ~ prefix | replace('.', '[.]') ~ '[0-9a-f]{8}$') | length) == 1 %}
                 {% set ns.matches = ns.matches + [{'idx': loop.index0, 'sub': true, 'label': r.label, 'entity': r.entity, 'domain': r.domain, 'key': r.key, 'temperature': kind, 'context': (sel_title | string)[-8:]}] %}
@@ -1006,7 +1022,7 @@ variables:
   # Blinds: do they accept a position (feature bit 4)?
   pick_pos: >-
     {{ pick_domain == 'cover' and ((state_attr(pick_entity, 'supported_features') | int(0)) // 4) % 2 == 1 }}
-  # Dual targets use live-value pickers; single-target rows retain their existing incremental controls.
+  # Single and dual targets share the same live-value picker.
   pick_temp: "{{ (state_attr(pick_entity, 'temperature') | float(none)) if pick_domain == 'climate' else none }}"
   pick_low: "{{ (state_attr(pick_entity, 'target_temp_low') | float(none)) if pick_domain == 'climate' else none }}"
   pick_high: "{{ (state_attr(pick_entity, 'target_temp_high') | float(none)) if pick_domain == 'climate' else none }}"
@@ -1026,7 +1042,7 @@ variables:
     fan_only: Fan Only
   c_dual: "{{ pick_domain == 'climate' and (pick_state == 'heat_cool' or (pick_state in ['auto', 'off'] and pick_temp is none and (pick_low is not none or pick_high is not none))) }}"
   c_available: "{{ pick_domain == 'climate' and pick_state not in ['', 'unknown', 'unavailable'] and pick_state in pick_modes }}"
-  c_limits: "{{ is_number(pick_min) and is_number(pick_max) and pick_min <= pick_max and is_number(pick_step) and pick_step > 0 }}"
+  c_limits: "{{ climate_temperature_unit in ['C', 'F'] and is_number(pick_min) and is_number(pick_max) and pick_min <= pick_max and is_number(pick_step) and pick_step > 0 }}"
   c_ready: >-
     {{ c_available and pick_state != 'off' and c_limits and
        ((c_dual and is_number(pick_low) and is_number(pick_high) and pick_min <= pick_low <= pick_high <= pick_max) or
@@ -1037,20 +1053,15 @@ variables:
       {% if c_dual %}
         {% for kind, value in [('Heat', pick_low), ('Cool', pick_high)] %}
           {% set t = ('%g' | format(value | round(3))) if is_number(value) else '--' %}
-          {% set ns.rows = ns.rows + [{'label': kind ~ ' ' ~ t, 'kind': (kind | lower) if c_ready else 'status'}] %}
-        {% endfor %}
-      {% elif c_ready %}
-        {% set t = '%g' | format(pick_temp | round(3)) %}
-        {% for kind in ['Warmer', 'Cooler'] %}
-          {% set ns.rows = ns.rows + [{'label': kind ~ ' (set ' ~ t ~ ')', 'kind': kind | lower}] %}
+          {% set ns.rows = ns.rows + [{'label': kind ~ ' ' ~ t ~ climate_unit_suffix, 'kind': (kind | lower) if c_ready else 'status'}] %}
         {% endfor %}
       {% else %}
         {% set t = ('%g' | format(pick_temp | round(3))) if is_number(pick_temp) else '--' %}
-        {% set ns.rows = ns.rows + [{'label': 'Set ' ~ t, 'kind': 'status'}] %}
+        {% set ns.rows = ns.rows + [{'label': 'Set ' ~ t ~ climate_unit_suffix, 'kind': 'set' if c_ready else 'status'}] %}
       {% endif %}
       {% set current = state_attr(pick_entity, 'current_temperature') | float(none) %}
       {% set measured = ('%g' | format(current | round(1))) if is_number(current) else '--' %}
-      {% set ns.rows = ns.rows + [{'label': 'Now ' ~ measured, 'kind': 'status'}] %}
+      {% set ns.rows = ns.rows + [{'label': 'Now ' ~ measured ~ climate_unit_suffix, 'kind': 'status'}] %}
       {% if c_available %}
         {% for mode in pick_modes %}
           {% set label = c_mode_labels.get(mode, mode | replace('_', ' ') | title) %}
@@ -1062,52 +1073,48 @@ variables:
     {% endif %}
     {{ ns.rows }}
   c_selected: "{{ c_rows[sel_index] if (pick_domain == 'climate' and pick_sub and pick_temperature == '' and trigger.id == 'menu' and 0 <= sel_index < (c_rows | length)) else {} }}"
-  c_open: "{{ c_ready and c_dual and c_selected.get('kind') in ['heat', 'cool'] and (sel_item | string) == c_selected.get('label') }}"
+  c_open: "{{ c_ready and c_selected.get('kind') in (['heat', 'cool'] if c_dual else ['set']) and (sel_item | string) == c_selected.get('label') }}"
   c_picker_kind: "{{ pick_temperature or (c_selected.get('kind') if c_open else '') }}"
-  c_picker_base: "{{ pick_low if c_picker_kind == 'heat' else (pick_high if c_picker_kind == 'cool' else none) }}"
-  c_picker_context: "{{ ([pick_entity, pick_state, c_picker_kind, c_picker_base, pick_step, pick_min, pick_max] | string | sha256)[:8] }}"
+  c_picker_base: "{{ pick_low if c_picker_kind == 'heat' else (pick_high if c_picker_kind == 'cool' else (pick_temp if c_picker_kind == 'set' else none)) }}"
+  c_picker_context: "{{ 'c' ~ ([pick_entity, pick_state, c_picker_kind, c_picker_base, pick_step, pick_min, pick_max, climate_temperature_unit] | string | sha256)[:7] }}"
   c_picker_title: "{{ (c_picker_kind | title) ~ '#' ~ room_pick.get('key', '') ~ '.' ~ c_picker_context }}"
   c_choices: >-
     {% set ns = namespace(rows=[], values=[]) %}
-    {% if c_ready and c_dual and c_picker_kind in ['heat', 'cool'] %}
-      {% for offset in [-5, -4, -3, -2, -1, 1, 2, 3, 4, 5] %}
+    {% if c_ready and c_picker_kind in (['heat', 'cool'] if c_dual else ['set']) %}
+      {% for offset in [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5] %}
         {% set raw = c_picker_base + offset * pick_step %}
         {% if is_number(raw) %}
           {% set value = raw | round(6) %}
           {% set label = ('%.6f' | format(value)).rstrip('0').rstrip('.') if value != 0 else '0' %}
-          {% if is_number(value) and value != c_picker_base and value not in ns.values and
+          {% set label = label ~ climate_unit_suffix ~ (' (current)' if offset == 0 else '') %}
+          {% if is_number(value) and (value == c_picker_base if offset == 0 else value != c_picker_base) and value not in ns.values and
                 (((value - c_picker_base) / pick_step) - offset) | abs < 0.0000001 and
-                (label | length) <= 22 and pick_min <= value <= pick_max and
-                ((c_picker_kind == 'heat' and value <= pick_high) or (c_picker_kind == 'cool' and value >= pick_low)) %}
-            {% set ns.rows = ns.rows + [{'label': label, 'value': value}] %}
+                (label | length) <= 24 and pick_min <= value <= pick_max and
+                (c_picker_kind == 'set' or (c_picker_kind == 'heat' and value <= pick_high) or (c_picker_kind == 'cool' and value >= pick_low)) %}
+            {% set ns.rows = ns.rows + [{'label': label, 'value': value, 'current': offset == 0}] %}
             {% set ns.values = ns.values + [value] %}
           {% endif %}
         {% endif %}
       {% endfor %}
     {% endif %}
     {{ ns.rows }}
+  c_current_index: >-
+    {% set ns = namespace(index=0) %}
+    {% for row in c_choices %}
+      {% if row.current %}{% set ns.index = loop.index0 %}{% endif %}
+    {% endfor %}
+    {{ ns.index }}
+  c_current_selected: >-
+    {{ pick_temperature != '' and c_ready and room_pick.get('context') == c_picker_context and
+       trigger.id == 'menu' and 0 <= sel_index < (c_choices | length) and
+       c_choices[sel_index].current and (sel_item | string) == c_choices[sel_index].label }}
   c_choice: >-
-    {% if pick_temperature != '' and c_ready and c_dual and room_pick.get('context') == c_picker_context and
+    {% if pick_temperature != '' and c_ready and room_pick.get('context') == c_picker_context and
           trigger.id == 'menu' and 0 <= sel_index < (c_choices | length) and
-          (sel_item | string) == c_choices[sel_index].label %}
+          not c_choices[sel_index].current and (sel_item | string) == c_choices[sel_index].label %}
       {{ c_choices[sel_index].value }}
     {% else %}{{ none }}{% endif %}
-  c_match: >-
-    {% set kind = c_selected.get('kind', '') %}
-    {% set patterns = {
-      'warmer': '^Warmer [(]set (-?[0-9]+(?:[.][0-9]+)?)[)]$',
-      'cooler': '^Cooler [(]set (-?[0-9]+(?:[.][0-9]+)?)[)]$'
-    } %}
-    {{ (sel_item | string | regex_findall(patterns[kind])) if kind in patterns else [] }}
-  c_base: >-
-    {{ (c_match[0] | float(none)) if c_match else none }}
-  c_dir: "{{ 1 if (c_selected.get('sign') == '+' or c_selected.get('kind') == 'warmer') else -1 }}"
-  c_new: >-
-    {% if pick_temperature != '' %}
-      {{ c_choice }}
-    {% elif c_ready and not c_dual and c_selected.get('kind') in ['warmer', 'cooler'] and is_number(c_base) and pick_min <= c_base <= pick_max %}
-      {{ [[(c_base + c_dir * pick_step) | round(3), pick_min] | max, pick_max] | min }}
-    {% else %}{{ none }}{% endif %}
+  c_new: "{{ c_choice }}"
   c_low: "{{ c_new if (c_dual and c_picker_kind == 'heat' and c_new is not none) else pick_low }}"
   c_high: "{{ c_new if (c_dual and c_picker_kind == 'cool' and c_new is not none) else pick_high }}"
   c_ok: "{{ c_new is not none }}"
@@ -1147,7 +1154,7 @@ variables:
         {% else %}{% set ns.s = 'room_toggle' %}
         {% endif %}
       {% elif pick_entity != '' and pick_sub %}
-        {% set ns.s = 'room_open_temp' if c_open else 'room_sub' %}
+        {% set ns.s = 'room_open_temp' if c_open or c_current_selected else 'room_sub' %}
       {% endif %}
     {% elif trigger.id == 'menu_cancel' %}
       {% if pick_entity != '' and pick_sub %}{% set ns.s = 'climate_back' if pick_temperature != '' else 'room_back' %}{% endif %}
@@ -1177,10 +1184,10 @@ variables:
     {% elif pick_domain == 'climate' %}
       {% for row in c_rows %}
         {% set label = row.label %}
-        {% if c_ok and row.kind in ['heat', 'cool', 'warmer', 'cooler'] %}
+        {% if c_ok and row.kind in ['heat', 'cool', 'set'] %}
           {% set value = (c_low if row.kind == 'heat' else c_high) if c_dual else c_new %}
           {% set t = '%g' | format(value | round(3)) %}
-          {% set label = ((row.kind | title) ~ ' ' ~ t) if c_dual else ((row.kind | title) ~ ' (set ' ~ t ~ ')') %}
+          {% set label = (row.kind | title) ~ ' ' ~ t ~ climate_unit_suffix %}
         {% elif c_mode != '' and row.kind == 'mode' %}
           {% set label = ('* ' if row.mode == c_mode else '') ~ c_mode_labels.get(row.mode, row.mode | replace('_', ' ') | title) %}
         {% endif %}
@@ -1268,7 +1275,7 @@ variables:
     {%- elif situation in ['room_open_sub', 'climate_back'] or (situation == 'room_sub' and pick_domain == 'climate') %}{{ sub_items }}
     {%- else %}{{ [] }}
     {%- endif %}
-  menu_index: "{{ ([pick_idx, 0] | max) if situation == 'room_back' else ((0 if pick_temperature == 'heat' else 1) if situation == 'climate_back' or (situation == 'room_sub' and pick_temperature != '') else ([[sel_index, (sub_items | length) - 1] | min, 0] | max if (situation == 'room_sub' and pick_domain == 'climate') else (sel_index if situation == 'room_sub' else 0))) }}"
+  menu_index: "{{ c_current_index if situation == 'room_open_temp' else (([pick_idx, 0] | max) if situation == 'room_back' else ((1 if pick_temperature == 'cool' else 0) if situation == 'climate_back' or (situation == 'room_sub' and pick_temperature != '') else ([[sel_index, (sub_items | length) - 1] | min, 0] | max if (situation == 'room_sub' and pick_domain == 'climate') else (sel_index if situation == 'room_sub' else 0)))) }}"
   menu_delay_ms: "{{ 500 if situation in ['room_open_sub', 'room_open_temp', 'climate_back', 'room_back', 'room_sub'] else 0 }}"
   # Watch / Listen rows are sources: the quirk then writes the chosen row into the header. Room rows are actions: it must not.
   menu_show_selection: "{{ 1 if situation in ['open_watch', 'open_listen'] else 0 }}"
@@ -1349,7 +1356,7 @@ actions:
 
   # 3. Run a scene / script / automation, or control a room device.
   - if:
-      - "{{ trigger.id == 'menu' and ((pick_temperature != '' and not c_ok) or (c_selected.get('kind') in ['heat', 'cool'] and not c_open) or (room_pick == {} and (sel_title | string) not in ['', watch_title, listen_title])) }}"
+      - "{{ trigger.id == 'menu' and ((pick_temperature != '' and not c_ok and not c_current_selected) or (c_selected.get('kind') in ['heat', 'cool', 'set'] and not c_open) or (room_pick == {} and (sel_title | string) not in ['', watch_title, listen_title])) }}"
     then:
       - action: system_log.write
         data:
@@ -1368,29 +1375,33 @@ actions:
       - "{{ (svc | string | trim) != '' }}"
     then:
       - if:
-          - "{{ c_dual and c_ok and pick_temperature != '' }}"
+          - "{{ c_ok and pick_temperature != '' }}"
         then:
           - variables:
               c_live_low: "{{ state_attr(pick_entity, 'target_temp_low') | float(none) }}"
               c_live_high: "{{ state_attr(pick_entity, 'target_temp_high') | float(none) }}"
+              c_live_temp: "{{ state_attr(pick_entity, 'temperature') | float(none) }}"
               c_live_ok: >-
                 {{ states(pick_entity) == pick_state and
                    pick_state in ((state_attr(pick_entity, 'hvac_modes') or []) | map('lower') | list) and
                    (state_attr(pick_entity, 'target_temp_step') | float(none)) == pick_step and
                    (state_attr(pick_entity, 'min_temp') | float(none)) == pick_min and
                    (state_attr(pick_entity, 'max_temp') | float(none)) == pick_max and
-                   is_number(c_live_low) and is_number(c_live_high) and pick_min <= c_live_low <= c_live_high <= pick_max and
-                   ((pick_temperature == 'heat' and c_live_low == c_picker_base and c_new <= c_live_high) or
-                    (pick_temperature == 'cool' and c_live_high == c_picker_base and c_new >= c_live_low)) }}
+                   pick_min <= c_new <= pick_max and
+                   ((pick_temperature == 'set' and not c_dual and is_number(c_live_temp) and c_live_temp == c_picker_base) or
+                    (c_dual and is_number(c_live_low) and is_number(c_live_high) and pick_min <= c_live_low <= c_live_high <= pick_max and
+                     ((pick_temperature == 'heat' and c_live_low == c_picker_base and c_new <= c_live_high) or
+                      (pick_temperature == 'cool' and c_live_high == c_picker_base and c_new >= c_live_low)))) }}
           - if:
               - "{{ c_live_ok }}"
             then:
               - action: climate.set_temperature
                 target:
                   entity_id: "{{ pick_entity }}"
-                data:
-                  target_temp_low: "{{ c_new if pick_temperature == 'heat' else c_live_low }}"
-                  target_temp_high: "{{ c_new if pick_temperature == 'cool' else c_live_high }}"
+                data: >-
+                  {{ {'temperature': c_new} if pick_temperature == 'set' else
+                     {'target_temp_low': c_new if pick_temperature == 'heat' else c_live_low,
+                      'target_temp_high': c_new if pick_temperature == 'cool' else c_live_high} }}
             else:
               - action: system_log.write
                 data:
