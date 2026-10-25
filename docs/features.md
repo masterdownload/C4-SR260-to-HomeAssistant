@@ -87,11 +87,14 @@ Cancel returns to Room without a device action. After an action, reopen List
 to see fresh state. Compact fan-title tags bind the menu to its entity,
 layout, reported state and capabilities. If these change, the old selection
 is rejected/logged; the service path checks again immediately before sending.
+The current fan caption shows only four name characters followed by a routing
+tag, for example `Fan#12345678.f1234567`. This is a known display-UX limitation,
+not a different device name; a clean-name redesign is not included here.
 Unknown/unavailable fans show a read-only status. Unsupported controls are
 omitted; unencodable preset text gets a read-only explanation. Ambiguous
 sanitized/truncated preset labels are not guessed.
 
-This is offline-checked behavior, not physical fan-actuation acceptance.
+Menu rendering has been observed; that is not physical fan-actuation acceptance.
 Fan semantics follow the [Home Assistant Fan integration](https://www.home-assistant.io/integrations/fan/).
 
 ### Thermostats
