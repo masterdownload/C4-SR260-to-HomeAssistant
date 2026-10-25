@@ -149,8 +149,10 @@ labels from each multi-label reply exactly reproduced that report. This is
 evidence for the compatibility trial, not a proven firmware specification.
 The remote requests subsequent offsets; there is no unsolicited remainder or
 retry loop. All remote menus, including older blueprint callers, use this
-shared paging rule and may require more packets. Correct physical ordering
-under this trial remains to be confirmed.
+shared paging rule and may require more packets. The owner confirmed correct
+ascending values and ASCII current/unit labels on one remote's Cool picker
+after this update, without selecting a temperature. This is scoped display
+acceptance, not a universal firmware specification or all-model guarantee.
 
 There are **up to eleven rows**. Limits and the opposite endpoint can leave
 fewer alternatives; invalid values are removed, never clamped, duplicated or

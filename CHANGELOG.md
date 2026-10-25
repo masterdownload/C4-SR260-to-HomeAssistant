@@ -7,7 +7,8 @@ Experimental initial standalone package, not a stable release.
 - Experimental menu paging compatibility: return at most one complete row
   per GI request, keeping request sequence/icon/list ownership and the 70-byte
   bound. Remote re-paging, not unsolicited sends, supplies later rows.
-  Shared across old/new blueprint callers; physical ordering remains pending.
+  Shared across old/new callers. Owner confirmed ascending Cool-picker values
+  and ASCII current/unit labels on one remote; not a universal firmware proof.
 - Climate labels now use ASCII space F/C after a physical degree-glyph issue.
   Manual unit choice/defaults and numeric service values are unchanged.
 - Clean fan/thermostat captions replace visible routing hashes. Optional local

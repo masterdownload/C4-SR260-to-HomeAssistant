@@ -261,7 +261,8 @@ or conversion. Check every room automation when upgrading. Remote climate
 labels use ASCII ` F`/` C`, avoiding the earlier unrendered degree glyph.
 The experimental one-row-per-GI helper affects all remotes, including old
 blueprint callers: back up the quirks and fully restart once after installing
-it. It may need more page requests; physical ordered rendering is not assumed.
+it. It may need more page requests. Ordered ASCII rendering was owner-confirmed
+on one Cool picker; other devices/menus remain separate acceptance checks.
 See [thermostat controls](features.md#thermostats). For this picker update on an
 existing install, update only the blueprint and reload automations while
 preserving saved inputs. The earlier picker-only update required no quirks;
