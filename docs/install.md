@@ -257,8 +257,11 @@ mode; temperature selection does not turn heating on. `*` marks the configured m
 Set **Room controls > Temperature unit** to the same unit Home Assistant
 displays. Both package copies default to Celsius; Fahrenheit installations
 must select Fahrenheit explicitly. This labels values only, with no detection
-or conversion. Check every room automation when upgrading. The degree glyph
-can be encoded but its physical appearance is not yet verified.
+or conversion. Check every room automation when upgrading. Remote climate
+labels use ASCII ` F`/` C`, avoiding the earlier unrendered degree glyph.
+The experimental one-row-per-GI helper affects all remotes, including old
+blueprint callers: back up the quirks and fully restart once after installing
+it. It may need more page requests; physical ordered rendering is not assumed.
 See [thermostat controls](features.md#thermostats). For this picker update on an
 existing install, update only the blueprint and reload automations while
 preserving saved inputs. The earlier picker-only update required no quirks;

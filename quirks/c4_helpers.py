@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Modified by masterdownload, 2026-10-17: raw-frame builder, atomic model storage
-# and strict SR-260 identity parsing; see docs/attribution.md.
+# Modified by masterdownload, 2026-10-24: raw frames, model storage, identity
+# parsing and single-row menu paging compatibility; see docs/attribution.md.
 # Includes the Apache-2.0 BUTTON_7/8 compatibility fallback by defjam903.
 # Derived from pvanbaren/zha-device-handlers; see docs/attribution.md.
 """Shared constants, store, helper utilities, and shared clusters for Control4 ZHA quirks.
@@ -664,11 +664,10 @@ async def _c4_send_list_items_response(
 
     The encoded frame must fit in a single Zigbee APS payload — bellows
     raises `MESSAGE_TOO_LONG` (status 56) above ~75 bytes once NWK
-    encryption overhead is added.  We greedily fit as many items as we can
-    and trust the remote to re-page (issue another `gi` for the remainder)
-    — the same chunking the official Control4 controller does, e.g. it
-    returns only 3 of 4 requested items in the watch-menu capture and the
-    SR260 follows up with `gi <listID> 0003 0001` for the missing one.
+    encryption overhead is added. Return at most one complete label and let
+    the remote request the remainder. This is a compatibility trial after
+    captured multi-label replies produced misordered physical rows, not a
+    confirmed firmware format. No unsolicited remainder or retry loop is sent.
     """
     icon_byte = icon & 0xFF
     icon_char = chr(icon_byte)
@@ -693,6 +692,7 @@ async def _c4_send_list_items_response(
             break
         running_len = candidate_len
         fit_count += 1
+        break
 
     if fit_count > 0:
         body = " ".join(parts[:fit_count])
@@ -705,7 +705,7 @@ async def _c4_send_list_items_response(
 
     if fit_count < len(parts):
         _LOGGER.debug(
-            "C4 display: send gi response seq=%s items=%d/%d (chunked) "
+            "C4 display: send gi response seq=%s items=%d/%d (single-row compatibility) "
             "icon=0x%02X len=%d",
             request_seq, fit_count, len(parts), icon_byte, len(data),
         )

@@ -1,6 +1,6 @@
 # Blueprint reference: Control4 SR-260 Room Remote v0.1 (menus, room controls, full remote, clock, volume)
 
-> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `f85211e30774`). No tools or tests need to be run to install the blueprint.
+> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `498149851180`). No tools or tests need to be run to install the blueprint.
 
 Requires Home Assistant 2025.9.0 or newer. Run mode: `parallel` (up to 10 runs at once; extra runs are dropped silently).
 
@@ -65,7 +65,7 @@ Opened by the List key. Switches and fans toggle when chosen. Lights, thermostat
 | Input | Name | Default | Type | What it does |
 |---|---|---|---|---|
 | `room_title` | Menu title | `Room` | text |   |
-| `climate_temperature_unit` | Temperature unit | `C` | select | Label only: choose the same temperature unit shown by Home Assistant. No automatic detection or conversion. Defaults to Celsius; set Fahrenheit explicitly if HA shows Fahrenheit. The degree glyph is not physically verified. |
+| `climate_temperature_unit` | Temperature unit | `C` | select | Label only: choose the same temperature unit shown by Home Assistant. No automatic detection or conversion. Defaults to Celsius; set Fahrenheit explicitly if HA shows Fahrenheit. Remote labels use ASCII space C/F for font compatibility. |
 | `room_items` | Items | *(no rows)* | list of rows: `label` = text, `entity` = entity (light, switch, input_boolean, fan, cover, climate, humidifier, valve, media_player, scene, script, automation) | Each row has a name (shown on the remote) and the thing it controls. |
 | `show_states` | Show the state after each name | on | on / off | e.g. "Floor Lamp 60%" or "Thermostat Now73 H/C". Climate names are shortened to fit the measured temperature and configured mode. |
 | `room_feedback` | Show a result message after a Room action | off | on / off | Off (default): the remote stays quiet and you see the light, fan or thermostat change. On: the screen also shows a short message such as "Floor Lamp: On", or "Running: Movie" for a scene. |

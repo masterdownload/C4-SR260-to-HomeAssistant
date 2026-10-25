@@ -109,9 +109,9 @@ within 22 characters. No active-heating/cooling status is invented.
 For a Heat/Cool thermostat with targets 69 and 76, the submenu contains:
 
 ```text
-Heat 69°F
-Cool 76°F
-Now 73°F
+Heat 69 F
+Cool 76 F
+Now 73 F
 * Heat/Cool
 Off
 ```
@@ -126,7 +126,7 @@ unchanged. These examples have Fahrenheit selected.
 Select **Heat 69** to open a temperature picker. With a reported step of 1,
 its rows are **64, 65, 66, 67, 68, 69 (current), 70, 71, 72, 73, 74**:
 five steps below and five above plus the current setpoint. The picker opens
-with **69°F (current)** selected. Every row includes the selected unit. A
+with **69 F (current)** selected. Every row includes the selected unit. A
 step of 0.5 offers 66.5-68.5 and 69.5-71.5
 around **69 (current)**. Signed and fractional temperatures are supported.
 
@@ -134,13 +134,23 @@ Single-target thermostats use the same interaction: choose **Set 75** to
 open **70, 71, 72, 73, 74, 75 (current), 76, 77, 78, 79, 80** with step 1. This
 replaces Warmer/Cooler. Selecting 76 sends only `temperature: 76`; it does not
 send range endpoints or change HVAC mode.
-With Celsius selected, a 23.5 target is labeled **23.5°C (current)**; the
+With Celsius selected, a 23.5 target is labeled **23.5 C (current)**; the
 value sent remains 23.5, not a converted number. Unit changes invalidate an
 old picker, just like a changed target or step.
 
-The existing menu encoder can send the degree symbol as one Latin-1 byte.
-Its actual appearance in the remote's font is **not physically verified**;
-successful encoding is not proof of the displayed glyph.
+Remote labels deliberately use ASCII space F/C, not a degree glyph: the
+earlier Latin-1 degree byte did not display as intended in a physical check.
+The unit selector still chooses Fahrenheit/Celsius, with no conversion.
+
+**Experimental paging compatibility:** the shared quirk now returns at most
+one complete quoted label per GI page request. A physical picker displayed
+misordered numbers even though HA's cache was sorted; a model taking alternate
+labels from each multi-label reply exactly reproduced that report. This is
+evidence for the compatibility trial, not a proven firmware specification.
+The remote requests subsequent offsets; there is no unsolicited remainder or
+retry loop. All remote menus, including older blueprint callers, use this
+shared paging rule and may require more packets. Correct physical ordering
+under this trial remains to be confirmed.
 
 There are **up to eleven rows**. Limits and the opposite endpoint can leave
 fewer alternatives; invalid values are removed, never clamped, duplicated or

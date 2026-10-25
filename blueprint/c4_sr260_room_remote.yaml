@@ -190,7 +190,7 @@ blueprint:
           description: >-
             Label only: choose the same temperature unit shown by Home Assistant.
             No automatic detection or conversion. Defaults to Celsius; set Fahrenheit
-            explicitly if HA shows Fahrenheit. The degree glyph is not physically verified.
+            explicitly if HA shows Fahrenheit. Remote labels use ASCII space C/F for font compatibility.
           default: C
           selector:
             select:
@@ -804,7 +804,7 @@ variables:
   show_volume: !input show_volume
   show_states: !input show_states
   climate_temperature_unit: !input climate_temperature_unit
-  climate_unit_suffix: "{{ '\\u00b0' ~ climate_temperature_unit if climate_temperature_unit in ['C', 'F'] else '' }}"
+  climate_unit_suffix: "{{ climate_temperature_unit if climate_temperature_unit in ['C', 'F'] else '' }}"
   room_feedback: !input room_feedback
   show_header: !input show_header
   header_line2: !input header_line2
@@ -884,7 +884,7 @@ variables:
           {% set t = state_attr(e, 'current_temperature') | float(none) %}
           {% set measured = ('%g' | format(t | round(1))) if is_number(t) else '--' %}
           {% set mode = {'heat_cool': 'H/C', 'fan_only': 'Fan'}.get(s, s | title) %}
-          {% set sfx = ' Now' ~ measured ~ climate_unit_suffix ~ ' ' ~ mode %}
+          {% set sfx = ' Now' ~ measured ~ (' ' ~ climate_unit_suffix if climate_unit_suffix else '') ~ ' ' ~ mode %}
           {% set nm = nm[:([22 - (sfx | length), 0] | max)] %}
         {% elif d in ['cover', 'valve'] %}
           {% set sfx = ' ' ~ (s | title) %}
@@ -1143,15 +1143,15 @@ variables:
       {% if c_dual %}
         {% for kind, value in [('Heat', pick_low), ('Cool', pick_high)] %}
           {% set t = ('%g' | format(value | round(3))) if is_number(value) else '--' %}
-          {% set ns.rows = ns.rows + [{'label': kind ~ ' ' ~ t ~ climate_unit_suffix, 'kind': (kind | lower) if c_ready else 'status'}] %}
+          {% set ns.rows = ns.rows + [{'label': kind ~ ' ' ~ t ~ (' ' ~ climate_unit_suffix if climate_unit_suffix else ''), 'kind': (kind | lower) if c_ready else 'status'}] %}
         {% endfor %}
       {% else %}
         {% set t = ('%g' | format(pick_temp | round(3))) if is_number(pick_temp) else '--' %}
-        {% set ns.rows = ns.rows + [{'label': 'Set ' ~ t ~ climate_unit_suffix, 'kind': 'set' if c_ready else 'status'}] %}
+        {% set ns.rows = ns.rows + [{'label': 'Set ' ~ t ~ (' ' ~ climate_unit_suffix if climate_unit_suffix else ''), 'kind': 'set' if c_ready else 'status'}] %}
       {% endif %}
       {% set current = state_attr(pick_entity, 'current_temperature') | float(none) %}
       {% set measured = ('%g' | format(current | round(1))) if is_number(current) else '--' %}
-      {% set ns.rows = ns.rows + [{'label': 'Now ' ~ measured ~ climate_unit_suffix, 'kind': 'status'}] %}
+      {% set ns.rows = ns.rows + [{'label': 'Now ' ~ measured ~ (' ' ~ climate_unit_suffix if climate_unit_suffix else ''), 'kind': 'status'}] %}
       {% if c_available %}
         {% for mode in pick_modes %}
           {% set label = c_mode_labels.get(mode, mode | replace('_', ' ') | title) %}
@@ -1177,7 +1177,7 @@ variables:
         {% if is_number(raw) %}
           {% set value = raw | round(6) %}
           {% set label = ('%.6f' | format(value)).rstrip('0').rstrip('.') if value != 0 else '0' %}
-          {% set label = label ~ climate_unit_suffix ~ (' (current)' if offset == 0 else '') %}
+          {% set label = label ~ (' ' ~ climate_unit_suffix if climate_unit_suffix else '') ~ (' (current)' if offset == 0 else '') %}
           {% if is_number(value) and (value == c_picker_base if offset == 0 else value != c_picker_base) and value not in ns.values and
                 (((value - c_picker_base) / pick_step) - offset) | abs < 0.0000001 and
                 (label | length) <= 24 and pick_min <= value <= pick_max and
@@ -1293,7 +1293,7 @@ variables:
         {% if c_ok and row.kind in ['heat', 'cool', 'set'] %}
           {% set value = (c_low if row.kind == 'heat' else c_high) if c_dual else c_new %}
           {% set t = '%g' | format(value | round(3)) %}
-          {% set label = (row.kind | title) ~ ' ' ~ t ~ climate_unit_suffix %}
+          {% set label = (row.kind | title) ~ ' ' ~ t ~ (' ' ~ climate_unit_suffix if climate_unit_suffix else '') %}
         {% elif c_mode != '' and row.kind == 'mode' %}
           {% set label = ('* ' if row.mode == c_mode else '') ~ c_mode_labels.get(row.mode, row.mode | replace('_', ' ') | title) %}
         {% endif %}

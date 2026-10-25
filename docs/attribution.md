@@ -42,7 +42,7 @@ Compared with the pinned pvanbaren source after normalizing CRLF to LF:
 
 | File | Changes |
 |---|---|
-| `c4_helpers.py` | defjam903 button-constant fallback; raw-frame grammar, length checks and sequence construction; strict global/captured-vendor SR-260 identity parsing; atomic model persistence; explicit identity-send results and actual EZSP/ZNP status checking; prominent source/modification notice |
+| `c4_helpers.py` | defjam903 button fallback; raw-frame/length/sequence helpers; strict identity parsing and atomic persistence; identity-send/radio status checking; experimental single-row menu replies; prominent source/modification notice |
 | `c4_hooks.py` | Strict pre-quirk SR-260 discovery, validated announce probing, safe raw-device lifecycle promotion and ZHA refresh; response-first registration with expiring recovery budget, cooldown and active-status suppression; preserve other-device/normal initialization routing; prominent modification notice |
 | `c4_button_cluster.py` | Diagnostics, bounded probing, silent selection/display announcements and passive battery reports; echo local context only for matching list IDs and ignore replaced-list events; prominent modification notice |
 | `c4_display_cluster.py` | Raw-send/display settings; `show_selection`; bounded optional local-only menu context and list-owned failure cleanup; prominent modification notice |
