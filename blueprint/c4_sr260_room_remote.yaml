@@ -827,9 +827,18 @@ variables:
     {% set g = [[(c[1] | float(0)) * f, 255] | min, 0] | max %}
     {% set b = [[(c[2] | float(0)) * f, 255] | min, 0] | max %}
     {{ ((r // 32) | int) * 32 + ((g // 32) | int) * 4 + ((b // 64) | int) }}
-  watch_title: !input watch_title
-  listen_title: !input listen_title
-  room_title: !input room_title
+  watch_title_input: !input watch_title
+  listen_title_input: !input listen_title
+  room_title_input: !input room_title
+  # Match the rendered/cache title to its wire-safe form, without collapsing inner spaces.
+  watch_title: "{{ watch_title_input | string | replace('\\r', ' ') | replace('\\n', ' ') | replace('\"', '') | trim }}"
+  listen_title: "{{ listen_title_input | string | replace('\\r', ' ') | replace('\\n', ' ') | replace('\"', '') | trim }}"
+  room_title: "{{ room_title_input | string | replace('\\r', ' ') | replace('\\n', ' ') | replace('\"', '') | trim }}"
+  menu_titles_valid: >-
+    {{ (watch_title | string | length) > 0 and (listen_title | string | length) > 0 and (room_title | string | length) > 0 and
+       (watch_title | string | length) <= 24 and (listen_title | string | length) <= 24 and (room_title | string | length) <= 24 and
+       (watch_title | string) != (listen_title | string) and (watch_title | string) != (room_title | string) and
+       (listen_title | string) != (room_title | string) }}
   watch_rows: !input watch_items
   listen_rows: !input listen_items
   room_rows: !input room_items
@@ -840,7 +849,7 @@ variables:
     {% set rows = watch_rows if watch_rows is iterable and watch_rows is not string else [] %}
     {% for r in rows if r is mapping and r.get('target') %}
       {% set t = r.get('target') %}
-      {% set nm = ((r.get('label') or state_attr(t, 'friendly_name') or t) | string)[:24] | replace('|', '/') | replace('"', '') | replace('\\', '/') | replace(']', ')') %}
+      {% set nm = ((r.get('label') or state_attr(t, 'friendly_name') or t) | string | replace('\r', ' ') | replace('\n', ' ') | replace('|', '/') | replace('"', '') | replace('\\', '/') | replace(']', ')') | trim)[:24] | trim %}
       {% set ns.out = ns.out + [{'label': nm, 'target': t}] %}
     {% endfor %}
     {{ ns.out }}
@@ -849,7 +858,7 @@ variables:
     {% set rows = listen_rows if listen_rows is iterable and listen_rows is not string else [] %}
     {% for r in rows if r is mapping and r.get('target') %}
       {% set t = r.get('target') %}
-      {% set nm = ((r.get('label') or state_attr(t, 'friendly_name') or t) | string)[:24] | replace('|', '/') | replace('"', '') | replace('\\', '/') | replace(']', ')') %}
+      {% set nm = ((r.get('label') or state_attr(t, 'friendly_name') or t) | string | replace('\r', ' ') | replace('\n', ' ') | replace('|', '/') | replace('"', '') | replace('\\', '/') | replace(']', ')') | trim)[:24] | trim %}
       {% set ns.out = ns.out + [{'label': nm, 'target': t}] %}
     {% endfor %}
     {{ ns.out }}
@@ -861,7 +870,7 @@ variables:
       {% set e = r.get('entity') %}
       {% set d = e.split('.')[0] %}
       {% set s = states(e) %}
-      {% set nm = ((r.get('label') or state_attr(e, 'friendly_name') or e) | string)[:22] | replace('|', '/') | replace('"', '') | replace('\\', '/') | replace(']', ')') %}
+      {% set nm = ((r.get('label') or state_attr(e, 'friendly_name') or e) | string | replace('\r', ' ') | replace('\n', ' ') | replace('|', '/') | replace('"', '') | replace('\\', '/') | replace(']', ')') | trim)[:22] | trim %}
       {% set sfx = '' %}
       {% if show_states and d not in ['scene', 'script', 'automation'] %}
         {% if s in ['unavailable', 'unknown'] %}
@@ -883,9 +892,24 @@ variables:
         {% endif %}
       {% endif %}
       {% set key = ([room_rows, room_title, watch_title, listen_title, loop.index0, e] | string | sha256)[:8] %}
-      {% set ns.out = ns.out + [{'label': nm, 'entity': e, 'domain': d, 'text': nm ~ sfx, 'key': key}] %}
+      {% set fan_snapshot = [s, state_attr(e, 'supported_features'), state_attr(e, 'percentage_step'),
+           state_attr(e, 'preset_modes'), state_attr(e, 'oscillating'), state_attr(e, 'direction'),
+           state_attr(e, 'percentage'), state_attr(e, 'preset_mode')] if d == 'fan' else [] %}
+      {% set fan_tag = 'f' ~ (fan_snapshot | string | sha256)[:7] %}
+      {% set title = nm[:4] ~ '#' ~ key ~ '.' ~ fan_tag if d == 'fan' else nm %}
+      {% set ns.out = ns.out + [{'label': nm, 'entity': e, 'domain': d, 'text': nm ~ sfx, 'key': key, 'title': title, 'fan_stamp': fan_tag}] %}
     {% endfor %}
     {{ ns.out }}
+  room_titles_valid: >-
+    {% set ns = namespace(ok=menu_titles_valid, labels=[]) %}
+    {% for r in room_list %}
+      {% set sub_title = r.label[:13] ~ '#' ~ r.key if r.domain == 'climate' else r.title %}
+      {% if r.label == '' or r.label in ns.labels or (r.domain in ['light', 'cover', 'climate', 'fan'] and (sub_title | string) in [watch_title | string, listen_title | string, room_title | string]) %}
+        {% set ns.ok = false %}
+      {% endif %}
+      {% set ns.labels = ns.labels + [r.label] %}
+    {% endfor %}
+    {{ ns.ok }}
   key_targets:
     room_off: !input room_off_target
     i: !input i_target
@@ -967,7 +991,7 @@ variables:
   args: >-
     {{ trigger.event.data.args if trigger.event.data.args is mapping else {} }}
   button: "{{ args.get('button', '') }}"
-  sel_title: "{{ (args.get('title') or '') if trigger.id in ['menu', 'menu_cancel'] else '' }}"
+  sel_title: "{{ ((args.get('title') or '') | string | replace('\\r', ' ') | replace('\\n', ' ') | replace('\"', '') | trim) if trigger.id in ['menu', 'menu_cancel'] else '' }}"
   sel_index: "{{ (args.get('selected_index', -1) | int(-1)) if trigger.id in ['menu', 'menu_cancel'] else -1 }}"
   sel_item: "{{ (args.get('item') or '') if trigger.id == 'menu' else '' }}"
   key_target: "{{ (key_targets.get(button) or '') if trigger.id == 'press' else '' }}"
@@ -982,7 +1006,7 @@ variables:
   # Compact title tags bind climate breadcrumbs to an entity/layout and picker snapshot.
   room_pick: >-
     {% set ns = namespace(matches=[]) %}
-    {% if trigger.id in ['menu', 'menu_cancel'] and (sel_title | string) != '' %}
+    {% if room_titles_valid and trigger.id in ['menu', 'menu_cancel'] and (sel_title | string) != '' %}
       {% if (sel_title | string) == (room_title | string) %}
         {% if trigger.id == 'menu' and sel_index >= 0 and sel_index < (room_list | length) %}
           {% set r = room_list[sel_index] %}
@@ -993,7 +1017,7 @@ variables:
       {% else %}
         {% for r in room_list %}
           {% set climate_main = r.domain == 'climate' and (sel_title | string | regex_findall('^.{1,13}#' ~ r.key ~ '$') | length) == 1 %}
-          {% if climate_main or (r.domain != 'climate' and r.label == (sel_title | string)) %}
+          {% if climate_main or (r.domain != 'climate' and r.title == (sel_title | string)) %}
             {% set ns.matches = ns.matches + [{'idx': loop.index0, 'sub': true, 'label': r.label, 'entity': r.entity, 'domain': r.domain, 'key': r.key}] %}
           {% endif %}
           {% if r.domain == 'climate' %}
@@ -1014,7 +1038,7 @@ variables:
   pick_sub: "{{ room_pick.get('sub', false) }}"
   pick_idx: "{{ room_pick.get('idx', -1) }}"
   pick_temperature: "{{ room_pick.get('temperature', '') }}"
-  c_main_title: "{{ pick_label[:13] ~ '#' ~ room_pick.get('key', '') if pick_domain == 'climate' else pick_label }}"
+  c_main_title: "{{ pick_label[:13] ~ '#' ~ room_pick.get('key', '') if pick_domain == 'climate' else (room_list[pick_idx].title if pick_idx >= 0 else pick_label) }}"
   pick_state: "{{ states(pick_entity) if pick_entity != '' else '' }}"
   # Light: does it dim (anything beyond plain on/off)?
   pick_dim: >-
@@ -1022,6 +1046,65 @@ variables:
   # Blinds: do they accept a position (feature bit 4)?
   pick_pos: >-
     {{ pick_domain == 'cover' and ((state_attr(pick_entity, 'supported_features') | int(0)) // 4) % 2 == 1 }}
+  f_features: "{{ state_attr(pick_entity, 'supported_features') | int(0) if pick_domain == 'fan' else 0 }}"
+  f_step: "{{ state_attr(pick_entity, 'percentage_step') | float(none) if pick_domain == 'fan' else none }}"
+  f_percentage: "{{ state_attr(pick_entity, 'percentage') | float(none) if pick_domain == 'fan' else none }}"
+  f_presets: >-
+    {% set modes = state_attr(pick_entity, 'preset_modes') if pick_domain == 'fan' else [] %}
+    {{ modes if modes is sequence and modes is not string else [] }}
+  f_count: >-
+    {% set count = (100 / f_step) if is_number(f_step) and 0 < f_step <= 100 else 0 %}
+    {{ (count | round | int) if 1 <= count <= 100 and (count - (count | round)) | abs < 0.000001 else 0 }}
+  f_rows: >-
+    {% set ns = namespace(rows=[]) %}
+    {% if pick_domain == 'fan' %}
+      {% if pick_state not in ['on', 'off'] %}
+        {% set ns.rows = [{'label': 'Unavailable', 'action': '', 'data': {}}] %}
+      {% else %}
+        {% if pick_state == 'off' and (f_features // 32) % 2 %}
+          {% set ns.rows = ns.rows + [{'label': 'Power On', 'action': 'fan.turn_on', 'data': {}}] %}
+        {% elif pick_state == 'on' and (f_features // 16) % 2 %}
+          {% set ns.rows = ns.rows + [{'label': 'Power Off', 'action': 'fan.turn_off', 'data': {}}] %}
+        {% endif %}
+        {% if f_features % 2 %}
+          {% set count = f_count if f_count else 4 %}
+          {% for index in range(1, count + 1) %}
+            {% set pct = (100 * index / count) | round(0, 'ceil') | int %}
+            {% set label = ('Speed ' ~ index ~ ' (' ~ pct ~ '%)') if f_count else ('Speed ' ~ pct ~ '%') %}
+            {% set label = ('* ' if pick_state == 'on' and f_percentage == pct else '') ~ label %}
+            {% set ns.rows = ns.rows + [{'label': label, 'action': 'fan.set_percentage', 'data': {'percentage': pct}}] %}
+          {% endfor %}
+        {% endif %}
+        {% if pick_state == 'on' %}
+          {% set osc = state_attr(pick_entity, 'oscillating') %}
+          {% if (f_features // 2) % 2 and osc is boolean %}
+            {% set ns.rows = ns.rows + [{'label': 'Osc ' ~ ('On -> Off' if osc else 'Off -> On'), 'action': 'fan.oscillate', 'data': {'oscillating': not osc}}] %}
+          {% endif %}
+          {% if (f_features // 8) % 2 or f_features % 2 %}
+            {% for preset in f_presets if preset is string and preset != '' %}
+              {% set label = preset | replace('\r', ' ') | replace('\n', ' ') | replace('|', '/') | replace('"', '') | replace('\\', '/') | replace(']', ')') | trim %}
+              {% set label = ('* ' if preset == state_attr(pick_entity, 'preset_mode') else '') ~ 'Preset ' ~ (label[:15] | trim) %}
+              {% if (label | regex_findall('[^\\x20-\\x7e\\xa0-\\xff]') | length) == 0 %}
+                {% set ns.rows = ns.rows + [{'label': label, 'action': 'fan.set_preset_mode', 'data': {'preset_mode': preset}}] %}
+              {% else %}
+                {% set ns.rows = ns.rows + [{'label': 'Preset text unsupported', 'action': '', 'data': {}}] %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {% set direction = state_attr(pick_entity, 'direction') %}
+          {% if (f_features // 4) % 2 and direction in ['forward', 'reverse'] %}
+            {% for value in ['forward', 'reverse'] %}
+              {% set ns.rows = ns.rows + [{'label': ('* ' if direction == value else '') ~ 'Direction ' ~ (value | title), 'action': 'fan.set_direction', 'data': {'direction': value}}] %}
+            {% endfor %}
+          {% endif %}
+        {% endif %}
+        {% if not ns.rows %}{% set ns.rows = [{'label': 'No supported controls', 'action': '', 'data': {}}] %}{% endif %}
+      {% endif %}
+    {% endif %}
+    {{ ns.rows }}
+  f_selected: >-
+    {% set row = f_rows[sel_index] if pick_domain == 'fan' and pick_sub and trigger.id == 'menu' and 0 <= sel_index < (f_rows | length) else {} %}
+    {{ row if row and (sel_item | string) == row.label and (f_rows | selectattr('label', 'equalto', row.label) | list | length) == 1 else {} }}
   # Single and dual targets share the same live-value picker.
   pick_temp: "{{ (state_attr(pick_entity, 'temperature') | float(none)) if pick_domain == 'climate' else none }}"
   pick_low: "{{ (state_attr(pick_entity, 'target_temp_low') | float(none)) if pick_domain == 'climate' else none }}"
@@ -1145,12 +1228,14 @@ variables:
       {% endif %}
     {% elif trigger.id == 'menu' %}
       {% if (sel_title | string) == (watch_title | string) %}
-        {% if sel_index >= 0 and sel_index < (watch_list | length) %}{% set ns.s = 'run_watch' %}{% endif %}
+        {% if sel_index >= 0 and sel_index < (watch_list | length) and (sel_item | string) == watch_list[sel_index].label and
+              (watch_list | selectattr('label', 'equalto', watch_list[sel_index].label) | list | length) == 1 %}{% set ns.s = 'run_watch' %}{% endif %}
       {% elif (sel_title | string) == (listen_title | string) %}
-        {% if sel_index >= 0 and sel_index < (listen_list | length) %}{% set ns.s = 'run_listen' %}{% endif %}
+        {% if sel_index >= 0 and sel_index < (listen_list | length) and (sel_item | string) == listen_list[sel_index].label and
+              (listen_list | selectattr('label', 'equalto', listen_list[sel_index].label) | list | length) == 1 %}{% set ns.s = 'run_listen' %}{% endif %}
       {% elif pick_entity != '' and not pick_sub %}
         {% if pick_domain in ['scene', 'script', 'automation'] %}{% set ns.s = 'room_run' %}
-        {% elif pick_dim or pick_domain in ['cover', 'climate'] %}{% set ns.s = 'room_open_sub' %}
+        {% elif pick_dim or pick_domain in ['cover', 'climate', 'fan'] %}{% set ns.s = 'room_open_sub' %}
         {% else %}{% set ns.s = 'room_toggle' %}
         {% endif %}
       {% elif pick_entity != '' and pick_sub %}
@@ -1159,6 +1244,10 @@ variables:
     {% elif trigger.id == 'menu_cancel' %}
       {% if pick_entity != '' and pick_sub %}{% set ns.s = 'climate_back' if pick_temperature != '' else 'room_back' %}{% endif %}
       {% if pick_entity == '' and (sel_title | string) not in ['', watch_title, listen_title, room_title] %}{% set ns.s = 'room_back' %}{% endif %}
+    {% endif %}
+    {% if (not menu_titles_valid and (trigger.id in ['menu', 'menu_cancel'] or (trigger.id == 'press' and button in ['list', 'watch', 'listen']))) or
+          (not room_titles_valid and ns.s in ['open_room', 'run_watch', 'run_listen', 'room_run', 'room_toggle', 'room_open_sub', 'room_open_temp', 'room_sub', 'climate_back', 'room_back']) %}
+      {% set ns.s = 'none' %}
     {% endif %}
     {{ ns.s }}
   # The scene / script / automation this event runs, and its name for the screen.
@@ -1181,6 +1270,8 @@ variables:
       {% set ns.v = ['Turn Off' if pick_state == 'on' else 'Turn On', '25%', '50%', '75%', '100%'] %}
     {% elif pick_domain == 'cover' %}
       {% set ns.v = ['Open', 'Close', 'Stop'] + (['25%', '50%', '75%'] if pick_pos else []) %}
+    {% elif pick_domain == 'fan' %}
+      {% set ns.v = f_rows | map(attribute='label') | list %}
     {% elif pick_domain == 'climate' %}
       {% for row in c_rows %}
         {% set label = row.label %}
@@ -1209,6 +1300,8 @@ variables:
         {{ 'cover.open_cover' if it == 'Open' else ('cover.close_cover' if it == 'Close' else ('cover.stop_cover' if it == 'Stop' else 'cover.set_cover_position')) }}
       {% elif pick_domain == 'climate' %}
         {{ 'climate.set_temperature' if c_ok else ('climate.set_hvac_mode' if c_mode != '' else '') }}
+      {% elif pick_domain == 'fan' %}
+        {{ f_selected.get('action', '') }}
       {% endif %}
     {% endif %}
   svc_entity: "{{ run_entity if run_entity != '' else pick_entity }}"
@@ -1223,6 +1316,8 @@ variables:
         {% if c_dual %}{{ {'target_temp_low': c_low, 'target_temp_high': c_high} }}{% else %}{{ {'temperature': c_new} }}{% endif %}
       {% elif pick_domain == 'climate' and c_mode != '' %}
         {{ {'hvac_mode': c_mode} }}
+      {% elif pick_domain == 'fan' %}
+        {{ f_selected.get('data', {}) }}
       {% else %}
         {{ {} }}
       {% endif %}
@@ -1356,7 +1451,23 @@ actions:
 
   # 3. Run a scene / script / automation, or control a room device.
   - if:
-      - "{{ trigger.id == 'menu' and ((pick_temperature != '' and not c_ok and not c_current_selected) or (c_selected.get('kind') in ['heat', 'cool', 'set'] and not c_open) or (room_pick == {} and (sel_title | string) not in ['', watch_title, listen_title])) }}"
+      - "{{ (trigger.id in ['menu', 'menu_cancel'] or (trigger.id == 'press' and button in ['list', 'watch', 'listen'])) and (not menu_titles_valid or (not room_titles_valid and (button == 'list' or trigger.id in ['menu', 'menu_cancel']))) }}"
+    then:
+      - action: system_log.write
+        data:
+          level: warning
+          logger: blueprints.control4_sr260
+          message: "Ignored ambiguous SR-260 menu: use distinct nonempty titles (up to 24 characters) and unique room labels after trimming/sanitization."
+  - if:
+      - "{{ trigger.id == 'menu' and pick_domain == 'fan' and pick_sub and not f_selected }}"
+    then:
+      - action: system_log.write
+        data:
+          level: warning
+          logger: blueprints.control4_sr260
+          message: "Ignored stale or ambiguous SR-260 fan choice; press List to reopen."
+  - if:
+      - "{{ trigger.id == 'menu' and ((pick_temperature != '' and not c_ok and not c_current_selected) or (c_selected.get('kind') in ['heat', 'cool', 'set'] and not c_open) or (room_pick == {} and (sel_title | string) not in ['', watch_title, listen_title]) or (situation == 'none' and (sel_title | string) in [watch_title | string, listen_title | string])) }}"
     then:
       - action: system_log.write
         data:
@@ -1409,10 +1520,32 @@ actions:
                   logger: blueprints.control4_sr260
                   message: "Thermostat changed before sending the SR-260 choice; no command sent. Reopen with List."
         else:
-          - action: "{{ svc | trim }}"
-            target:
-              entity_id: "{{ svc_entity }}"
-            data: "{{ svc_data }}"
+          - if:
+              - "{{ pick_domain == 'fan' and situation == 'room_sub' }}"
+            then:
+              - variables:
+                  f_live_stamp: >-
+                    {{ 'f' ~ ([states(pick_entity), state_attr(pick_entity, 'supported_features'), state_attr(pick_entity, 'percentage_step'),
+                        state_attr(pick_entity, 'preset_modes'), state_attr(pick_entity, 'oscillating'), state_attr(pick_entity, 'direction'),
+                        state_attr(pick_entity, 'percentage'), state_attr(pick_entity, 'preset_mode')] | string | sha256)[:7] }}
+              - if:
+                  - "{{ f_live_stamp == room_list[pick_idx].fan_stamp }}"
+                then:
+                  - action: "{{ svc | trim }}"
+                    target:
+                      entity_id: "{{ svc_entity }}"
+                    data: "{{ svc_data }}"
+                else:
+                  - action: system_log.write
+                    data:
+                      level: warning
+                      logger: blueprints.control4_sr260
+                      message: "Fan state or capabilities changed before sending; no command sent. Reopen with List."
+            else:
+              - action: "{{ svc | trim }}"
+                target:
+                  entity_id: "{{ svc_entity }}"
+                data: "{{ svc_data }}"
 
   # 4. Vol + / Vol - (repeat while held) and Mute.
   - if:

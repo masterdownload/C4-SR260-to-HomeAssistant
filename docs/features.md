@@ -44,19 +44,55 @@ every held key repeats at a fixed 100 ms interval.
 
 - Watch and Listen open menus of scenes, scripts or automations.
 - List opens Room controls. Lights can offer on/off and dim levels, thermostats
-  temperature/mode choices, and covers open/close/stop. Switches and fans can
-  toggle. Other supported domains follow the blueprint's implementation.
+  temperature/mode choices, fans their supported controls, and covers
+  open/close/stop. Switches toggle. Other supported domains follow the blueprint.
 - Room Off, I / II / III, Prev and DVR can each run a target. Leave empty inputs
   empty to ignore those actions.
   Room Off is always visible directly below Header, line 2; the other shortcut
   keys remain in the collapsed Other keys section.
 - Labels must be unique and short; Watch, Listen and Room titles must differ.
-  Selections are matched using menu title/index. Avoid duplicate room entities.
+  Titles are trimmed and made wire-safe before display and matching; leading/
+  trailing spaces do not break routing. Case and internal spaces are retained.
+  Root titles must be nonempty, distinct after normalization and at most 24
+  characters. Normalized/truncated row-name collisions reject with a warning
+  rather than running a different target. Avoid duplicate room entities.
 - Room actions are silent by default. The optional feedback setting shows a
   result message instead. Cancel inside a submenu returns to Room.
 
 Every input and supported selector domain is listed in the
 [blueprint reference](blueprint-reference.md).
+
+### Fans
+
+Selecting a fan in List **opens a submenu**, without toggling power. It uses
+the entity's reported capabilities, not its brand or a hardcoded preset list:
+
+| Control | When offered |
+|---|---|
+| Power On / Power Off | The corresponding action is supported and state is known |
+| Speed 1..N (percentage) | Speed is supported and the reported percentage step maps to 1..100 speeds |
+| Speed 25%, 50%, 75%, 100% | Speed is supported but the step is absent/invalid or cannot map to that range |
+| Osc Off -> On / Osc On -> Off | Fan is on, oscillation supported and current status is known |
+| Preset name | Fan is on and the integration reports presets; the original exact name is sent |
+| Direction Forward / Reverse | Fan is on, direction supported and the reported direction is valid |
+
+A step of 20 gives Speed 1 (20%) through Speed 5 (100%). `*` marks an exactly
+matching reported speed, preset or direction. Percentage values are whole
+numbers, rounded up when necessary (three speeds use 34%, 67%, 100%).
+**Choosing a speed while off may turn the fan on.** Preset/oscillation/direction
+controls are hidden while off; select Power On first if supported.
+An on/off-only fan still opens a one-action power menu.
+
+Cancel returns to Room without a device action. After an action, reopen List
+to see fresh state. Compact fan-title tags bind the menu to its entity,
+layout, reported state and capabilities. If these change, the old selection
+is rejected/logged; the service path checks again immediately before sending.
+Unknown/unavailable fans show a read-only status. Unsupported controls are
+omitted; unencodable preset text gets a read-only explanation. Ambiguous
+sanitized/truncated preset labels are not guessed.
+
+This is offline-checked behavior, not physical fan-actuation acceptance.
+Fan semantics follow the [Home Assistant Fan integration](https://www.home-assistant.io/integrations/fan/).
 
 ### Thermostats
 

@@ -4,6 +4,14 @@
 
 Experimental initial standalone package, not a stable release.
 
+- Fixed menu routing when configured titles contain leading/trailing spaces:
+  display and matching now share wire-safe canonical titles, preserving case/
+  internal spaces. Ambiguous normalized titles/rows log and reject, not misroute.
+- Fan List rows now open capability-based power, speed, oscillation, reported
+  presets and optional direction controls. Speed selection while off may turn
+  on; other advanced controls require on. Stale/colliding rows refuse actions.
+  Blueprint-only update; existing inputs, media/climate behavior and all quirks
+  retained. Separate-file staging can preserve the old blueprint as rollback.
 - Single-target thermostats now use **Set N -> ten temperature choices**, just
   like range Heat/Cool targets, replacing Warmer/Cooler. Both include a marked
   read-only current row between five lower and five higher choices (up to

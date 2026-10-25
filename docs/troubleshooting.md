@@ -22,6 +22,9 @@ label or manifest comparison as proof of physical behavior.
 | TV key does nothing | Verify the target `remote` entity and its integration-specific command names; Roku defaults are not universal |
 | Screen misses an update | The radio sleeps; test immediately after a remote event, not an arbitrary delayed push; reduce avoidable delays |
 | Wrong menu opens or selection runs wrong row | Use distinct menu titles and unique short row labels; compare saved inputs and automation trace |
+| List shows state but every selection is ignored with a padded menu title | Update the blueprint: configured/output/incoming titles now share trimming and quote/newline handling. Saved titles need not be rewritten. Duplicate normalized titles/labels still reject explicitly |
+| Fan only used to toggle, or a control is missing | Updated fan rows open a capability-driven submenu. Oscillation/presets/direction require the fan to be on and supported; direction must be reported. Missing/invalid speed step uses generic percentage choices, not invented speed levels |
+| Fan selection says stale/ambiguous | Reopen List after state/capabilities/layout changed; keep preset labels unambiguous after truncation. No action is sent on a mismatch |
 | Thermostat only shows read-only targets | Confirm the entity reports valid targets, minimum/maximum and a positive temperature step, and is not off/unavailable; supported mode choices can turn an off thermostat back on |
 | Thermostat displays H/C but does not seem to heat or cool | H/C is the configured Heat/Cool mode, not active HVAC action; the package does not invent missing active-heating/cooling status |
 | Set/Heat/Cool picker has fewer than eleven rows | Bounds, the opposite range endpoint or unrepresentable values remove alternatives without clamping/duplication/backfill; the marked current row is read-only and initially selected |

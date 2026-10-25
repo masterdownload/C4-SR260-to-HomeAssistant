@@ -213,6 +213,19 @@ In **Settings > Automations & scenes > Blueprints**, create one automation
 per remote. Select the remote, then the entities you want to control.
 Keep menu names short and unique. Roku command names are defaults; other
 remote integrations may need different names.
+Leading/trailing title spaces are normalized consistently; do not give two
+menus or rows names that become identical after trimming/sanitization.
+Watch/Listen/Room titles must be nonempty and at most 24 characters.
+
+Fan rows now open supported power/speed/oscillation/preset/direction controls
+instead of immediately toggling. Selecting speed while off may turn the fan
+on. See [fan behavior and capability limits](features.md#fans).
+
+To try this update as a separate blueprint, copy its YAML to a **new filename**
+under your HA blueprint folder and keep the existing file as rollback. Back
+up each automation, preserve its entire saved input block and change only its
+blueprint path when switching. Do not use UI Re-assign to migrate settings.
+Reload automations after switching; this update needs no quirk change/restart.
 
 The optional media-key action sections accept a scene/automation instead of
 that key's command. Overrides run once on short press, never while held;
