@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Original contributions attributed to masterdownload; see docs/attribution.md.
 blueprint:
-  name: Control4 SR-260 Room Remote v0.1 (menus, room controls, full remote, clock, volume)
+  name: Control4 SR-260 Room Remote v0.3.0 (menus, room controls, full remote, clock, volume)
   author: masterdownload
   domain: automation
   homeassistant:
@@ -16,7 +16,8 @@ blueprint:
     * Optional **scene or automation overrides** for media keys run once on short press instead of sending a remote command. Empty overrides preserve commands and their existing hold repeats.
     * **When the remote is picked up** its screen gets a header (the room name, and the volume as a text bar on the second line), its clock is set, and your text colour and brightness are applied. The volume line is refreshed after every volume key.
 
-    Version **v0.1** (in development, not released). Needs the quirk files of the same package version (the 15 files in the package's quirks folder): install them and restart Home Assistant first, then this blueprint.
+    Version **v0.3.0** (experimental, not a stable release). Subsequent published blueprint or quirk changes increment the patch version (v0.3.1, v0.3.2, ...).
+    Needs the matching 15 quirk files in this package: install them and restart Home Assistant first, then this blueprint. The v0.3.0 checkpoint changes version labels only; quirk bytes and runtime behavior are unchanged from the preceding build.
     Keep names short (about 12 characters; the screen shows roughly 17-20 and the state is added after the name). Names must be unique, and the Watch, Listen and Room menu titles must all be different.
     While a menu is open the remote handles Up / Down / Select / Cancel itself.
     Command-name reference (manual lookup only; nothing is downloaded at runtime): https://github.com/masterdownload/C4-SR260-to-HomeAssistant/blob/main/docs/remote-commands.md

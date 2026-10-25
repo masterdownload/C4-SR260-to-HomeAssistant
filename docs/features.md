@@ -1,6 +1,6 @@
 # Behavior and limits
 
-These are implemented v0.1 features, not a claim of completed physical testing.
+These are implemented v0.3.0 features, not a claim of completed physical testing.
 See the [evidence limits in the README](../README.md).
 
 ## Automatic identity learning
@@ -21,7 +21,7 @@ including after reset/rejoin.
 This is separate from learning a model. Actual key/motion/menu operation must be
 checked. List/Room Off and menus were captured working on one cache-preserved
 replacement; its wake room-name header was confirmed by the owner after sleep/
-pickup. That does not establish every v0.1 feature or a truly uncached first join.
+pickup. That does not establish every current feature or a truly uncached first join.
 
 ## Events and keys
 

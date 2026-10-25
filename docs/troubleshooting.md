@@ -35,7 +35,7 @@ label or manifest comparison as proof of physical behavior.
 | Physical picker order differs from sorted HA rows | The experimental helper returns one complete row per request; one Cool picker now has owner-confirmed correct ordering/ASCII labels. Update matching helper/restart once, but verify your own display. Do not sort the already-sorted source again or select a dubious row |
 | A thermostat selection refreshes without changing the target | Its target/mode/step/limits or room layout may have changed. Reopen with List; do not reuse an old picker. Room names must be unique; new clean-title menus require hidden context from the matching updated quirks |
 | Fan/thermostat menu title shows a hash | An older blueprint is still in use. The clean-title revision moves routing into optional local metadata; install matching display/button quirks and fully restart before switching its blueprint |
-| Chosen Room row remains on screen | Check that blueprint and all quirks match v0.1 and `room_feedback` is off; the silent-choice implementation still needs physical confirmation |
+| Chosen Room row remains on screen | Use the matching package's blueprint/quirks and check `room_feedback` is off; screen behavior still needs physical confirmation on your setup |
 | Battery is unknown | The native Battery diagnostic waits for a valid passive `c4.zr.bl` report; no fake initial value or active poll is used. Other status attributes are not substituted |
 | Battery entity is missing | Load all matching updated quirks and fully restart; known SR-260 power classification is corrected so native ZHA can discover it. Check whether the entity was disabled manually |
 | LQI/RSSI is empty | Diagnostic values can remain empty and are not by themselves proof the remote is offline |
@@ -73,7 +73,7 @@ unsupported radio backends are explicit in logs. No new attribute values,
 firmware or undocumented ASCII settings are part of this variation.
 The response-first form enabled actual keys/menus on one observed replacement,
 and its wake header was owner-confirmed. Do not confuse that scoped acceptance
-with a guarantee of uncached first joins or all v0.1 behavior.
+with a guarantee of uncached first joins or all current behavior.
 
 If a recognized remote later emits only Device Announce, an earlier hook's
 two-attempt process-lifetime registration cap could suppress recovery for

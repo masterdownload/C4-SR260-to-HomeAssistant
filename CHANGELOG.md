@@ -1,8 +1,21 @@
 # Public package changelog
 
+## v0.3.0
+
+2026-10-24 version-tracking checkpoint, still experimental and not a stable
+release. Names the accumulated onboarding/recovery, media actions, Battery
+diagnostics, thermostat/fan menus, hidden menu context and one-row paging work.
+Only blueprint name/help/version metadata change; no runtime or quirk changes.
+
+Every subsequent published blueprint or quirk change/fix increments PATCH
+(0.3.1, 0.3.2, ...). Minor/major milestones require an explicit decision.
+Docs/tests-only edits do not bump unchanged deployables. No v0.2 release is
+invented retroactively, and no tag/release or HA deployment is part of this bump.
+
 ## v0.1
 
-Experimental initial standalone package, not a stable release.
+Historical development work before the v0.3.0 tracking checkpoint, not a
+stable release. Entries below describe their sequence, not new deployments.
 
 - Experimental menu paging compatibility: return at most one complete row
   per GI request, keeping request sequence/icon/list ownership and the 70-byte

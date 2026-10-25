@@ -1,7 +1,14 @@
 # C4-SR260-to-HomeAssistant
 
-**Experimental v0.1.** Use a Control4 SR-260 remote with Home Assistant **ZHA**,
+**Experimental v0.3.0.** Use a Control4 SR-260 remote with Home Assistant **ZHA**,
 without a Control4 controller.
+
+**Build tracking:** `VERSION` is shared by the package and blueprint. Every
+subsequent published blueprint or quirk change/fix increments the patch:
+**v0.3.1, v0.3.2, ...**, even while experimental. Minor/major checkpoints
+are chosen explicitly; documentation/tests-only updates do not change
+deployable versions. This v0.3.0 checkpoint changes labels, not runtime
+behavior or quirk bytes. No stable release/tag is implied.
 
 Watch/Listen menus, room controls, TV keys, volume, screen text and clock.
 Optional scene/automation media-key actions and a native ZHA Battery diagnostic
