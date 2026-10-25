@@ -1,6 +1,6 @@
-# Blueprint reference: Control4 SR-260 Room Remote v0.3.0 (menus, room controls, full remote, clock, volume)
+# Blueprint reference: Control4 SR-260 Room Remote v0.3.1
 
-> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `0983df2cf863`). No tools or tests need to be run to install the blueprint.
+> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `10fec6683c12`). No tools or tests need to be run to install the blueprint.
 
 Requires Home Assistant 2025.9.0 or newer. Run mode: `parallel` (up to 10 runs at once; extra runs are dropped silently).
 

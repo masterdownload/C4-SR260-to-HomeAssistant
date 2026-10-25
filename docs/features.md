@@ -1,6 +1,6 @@
 # Behavior and limits
 
-These are implemented v0.3.0 features, not a claim of completed physical testing.
+These are implemented v0.3.1 features, not a claim of completed physical testing.
 See the [evidence limits in the README](../README.md).
 
 ## Automatic identity learning

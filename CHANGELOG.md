@@ -1,5 +1,13 @@
 # Public package changelog
 
+## v0.3.1
+
+2026-10-24 title-only cleanup: remove `(menus, room controls, full remote,
+clock, volume)` from the blueprint name. Current title:
+**Control4 SR-260 Room Remote v0.3.1**. Runtime, inputs and quirk bytes unchanged.
+Patch increment follows the deployable metadata rule. Historical titles below
+are preserved; no tag/release implied.
+
 ## v0.3.0
 
 2026-10-24 version-tracking checkpoint, still experimental and not a stable

@@ -1,6 +1,6 @@
 # Safety, upgrades and recovery
 
-**Experimental v0.3.0; AS IS, without warranty.** Make a full Home Assistant
+**Experimental v0.3.1; AS IS, without warranty.** Make a full Home Assistant
 backup before installation or upgrade. Keep a separate recovery-accessible
 copy of configuration, custom quirks, blueprint and automation inputs.
 
