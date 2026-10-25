@@ -4,6 +4,11 @@
 
 Experimental initial standalone package, not a stable release.
 
+- Clean fan/thermostat captions replace visible routing hashes. Optional local
+  show_list context is list-ID-bound and echoed in select/cancel events only;
+  it never enters radio titles/rows. Old callers stay compatible; the new
+  blueprint requires updated display/button quirks and a full HA restart.
+  Snapshot/row validation and final live checks remain in place.
 - Fixed menu routing when configured titles contain leading/trailing spaces:
   display and matching now share wire-safe canonical titles, preserving case/
   internal spaces. Ambiguous normalized titles/rows log and reject, not misroute.

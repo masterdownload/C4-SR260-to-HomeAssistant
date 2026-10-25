@@ -225,7 +225,11 @@ To try this update as a separate blueprint, copy its YAML to a **new filename**
 under your HA blueprint folder and keep the existing file as rollback. Back
 up each automation, preserve its entire saved input block and change only its
 blueprint path when switching. Do not use UI Re-assign to migrate settings.
-Reload automations after switching; this update needs no quirk change/restart.
+For the clean-title revision, first copy the matching display/button quirk
+files with the package set backed up and perform one full HA restart. Then
+switch the staged blueprint path while preserving inputs. Its optional local
+menu context is new: the clean-title blueprint must not run with older quirks.
+Older blueprint callers remain compatible with the updated quirks.
 
 The optional media-key action sections accept a scene/automation instead of
 that key's command. Overrides run once on short press, never while held;
@@ -257,7 +261,9 @@ or conversion. Check every room automation when upgrading. The degree glyph
 can be encoded but its physical appearance is not yet verified.
 See [thermostat controls](features.md#thermostats). For this picker update on an
 existing install, update only the blueprint and reload automations while
-preserving saved inputs; no quirk replacement or restart is required.
+preserving saved inputs. The earlier picker-only update required no quirks;
+the newer hidden-context clean-title update does require its updated
+display/button quirks and one full restart as described above.
 
 Test one harmless action while present. Check the remote, target device and
 automation trace. The full new blueprint behavior is not physically verified

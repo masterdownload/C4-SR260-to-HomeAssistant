@@ -871,6 +871,7 @@ variables:
       {% set d = e.split('.')[0] %}
       {% set s = states(e) %}
       {% set nm = ((r.get('label') or state_attr(e, 'friendly_name') or e) | string | replace('\r', ' ') | replace('\n', ' ') | replace('|', '/') | replace('"', '') | replace('\\', '/') | replace(']', ')') | trim)[:22] | trim %}
+      {% set submenu_name = nm %}
       {% set sfx = '' %}
       {% if show_states and d not in ['scene', 'script', 'automation'] %}
         {% if s in ['unavailable', 'unknown'] %}
@@ -896,20 +897,22 @@ variables:
            state_attr(e, 'preset_modes'), state_attr(e, 'oscillating'), state_attr(e, 'direction'),
            state_attr(e, 'percentage'), state_attr(e, 'preset_mode')] if d == 'fan' else [] %}
       {% set fan_tag = 'f' ~ (fan_snapshot | string | sha256)[:7] %}
-      {% set title = nm[:4] ~ '#' ~ key ~ '.' ~ fan_tag if d == 'fan' else nm %}
-      {% set ns.out = ns.out + [{'label': nm, 'entity': e, 'domain': d, 'text': nm ~ sfx, 'key': key, 'title': title, 'fan_stamp': fan_tag}] %}
+      {% set context = 'fan#' ~ key ~ '.' ~ fan_tag if d == 'fan' else ('climate#' ~ key if d == 'climate' else 'room#' ~ key) %}
+      {% set ns.out = ns.out + [{'label': nm, 'entity': e, 'domain': d, 'text': nm ~ sfx, 'key': key, 'title': submenu_name, 'context': context, 'fan_stamp': fan_tag}] %}
     {% endfor %}
     {{ ns.out }}
   room_titles_valid: >-
     {% set ns = namespace(ok=menu_titles_valid, labels=[]) %}
     {% for r in room_list %}
-      {% set sub_title = r.label[:13] ~ '#' ~ r.key if r.domain == 'climate' else r.title %}
-      {% if r.label == '' or r.label in ns.labels or (r.domain in ['light', 'cover', 'climate', 'fan'] and (sub_title | string) in [watch_title | string, listen_title | string, room_title | string]) %}
+      {% if r.label == '' or r.label in ns.labels %}
         {% set ns.ok = false %}
       {% endif %}
       {% set ns.labels = ns.labels + [r.label] %}
     {% endfor %}
     {{ ns.ok }}
+  watch_context: "{{ 'watch#' ~ ([watch_title, watch_list] | string | sha256)[:16] }}"
+  listen_context: "{{ 'listen#' ~ ([listen_title, listen_list] | string | sha256)[:16] }}"
+  room_context: "{{ 'root#' ~ ([room_title, room_rows, watch_title, listen_title] | string | sha256)[:16] }}"
   key_targets:
     room_off: !input room_off_target
     i: !input i_target
@@ -992,6 +995,10 @@ variables:
     {{ trigger.event.data.args if trigger.event.data.args is mapping else {} }}
   button: "{{ args.get('button', '') }}"
   sel_title: "{{ ((args.get('title') or '') | string | replace('\\r', ' ') | replace('\\n', ' ') | replace('\"', '') | trim) if trigger.id in ['menu', 'menu_cancel'] else '' }}"
+  sel_context: >-
+    {% set value = args.get('context', '') %}
+    {{ value if trigger.id in ['menu', 'menu_cancel'] and value is string and
+       0 < (value | length) <= 64 and (value | regex_findall('^[A-Za-z0-9#._-]+$') | length) == 1 else '' }}
   sel_index: "{{ (args.get('selected_index', -1) | int(-1)) if trigger.id in ['menu', 'menu_cancel'] else -1 }}"
   sel_item: "{{ (args.get('item') or '') if trigger.id == 'menu' else '' }}"
   key_target: "{{ (key_targets.get(button) or '') if trigger.id == 'press' else '' }}"
@@ -1007,7 +1014,7 @@ variables:
   room_pick: >-
     {% set ns = namespace(matches=[]) %}
     {% if room_titles_valid and trigger.id in ['menu', 'menu_cancel'] and (sel_title | string) != '' %}
-      {% if (sel_title | string) == (room_title | string) %}
+      {% if sel_context == room_context and (sel_title | string) == (room_title | string) %}
         {% if trigger.id == 'menu' and sel_index >= 0 and sel_index < (room_list | length) %}
           {% set r = room_list[sel_index] %}
           {% if (sel_item | string) in [r.text, r.label] and (room_list | selectattr('label', 'equalto', r.label) | list | length) == 1 %}
@@ -1016,15 +1023,15 @@ variables:
         {% endif %}
       {% else %}
         {% for r in room_list %}
-          {% set climate_main = r.domain == 'climate' and (sel_title | string | regex_findall('^.{1,13}#' ~ r.key ~ '$') | length) == 1 %}
-          {% if climate_main or (r.domain != 'climate' and r.title == (sel_title | string)) %}
+          {% set row_index = loop.index0 %}
+          {% if sel_context == r.context and r.title == (sel_title | string) %}
             {% set ns.matches = ns.matches + [{'idx': loop.index0, 'sub': true, 'label': r.label, 'entity': r.entity, 'domain': r.domain, 'key': r.key}] %}
           {% endif %}
           {% if r.domain == 'climate' %}
             {% for kind in ['heat', 'cool', 'set'] %}
               {% set prefix = (kind | title) ~ '#' ~ r.key ~ '.' %}
-              {% if (sel_title | string | regex_findall('^' ~ prefix | replace('.', '[.]') ~ '[0-9a-f]{8}$') | length) == 1 %}
-                {% set ns.matches = ns.matches + [{'idx': loop.index0, 'sub': true, 'label': r.label, 'entity': r.entity, 'domain': r.domain, 'key': r.key, 'temperature': kind, 'context': (sel_title | string)[-8:]}] %}
+              {% if (sel_context | regex_findall('^' ~ prefix | replace('.', '[.]') ~ '[0-9a-f]{8}$') | length) == 1 and (sel_title | string) == (kind | title) %}
+                {% set ns.matches = ns.matches + [{'idx': row_index, 'sub': true, 'label': r.label, 'entity': r.entity, 'domain': r.domain, 'key': r.key, 'temperature': kind, 'context': sel_context[-8:]}] %}
               {% endif %}
             {% endfor %}
           {% endif %}
@@ -1038,7 +1045,7 @@ variables:
   pick_sub: "{{ room_pick.get('sub', false) }}"
   pick_idx: "{{ room_pick.get('idx', -1) }}"
   pick_temperature: "{{ room_pick.get('temperature', '') }}"
-  c_main_title: "{{ pick_label[:13] ~ '#' ~ room_pick.get('key', '') if pick_domain == 'climate' else (room_list[pick_idx].title if pick_idx >= 0 else pick_label) }}"
+  c_main_title: "{{ room_list[pick_idx].title if pick_idx >= 0 else pick_label }}"
   pick_state: "{{ states(pick_entity) if pick_entity != '' else '' }}"
   # Light: does it dim (anything beyond plain on/off)?
   pick_dim: >-
@@ -1160,7 +1167,8 @@ variables:
   c_picker_kind: "{{ pick_temperature or (c_selected.get('kind') if c_open else '') }}"
   c_picker_base: "{{ pick_low if c_picker_kind == 'heat' else (pick_high if c_picker_kind == 'cool' else (pick_temp if c_picker_kind == 'set' else none)) }}"
   c_picker_context: "{{ 'c' ~ ([pick_entity, pick_state, c_picker_kind, c_picker_base, pick_step, pick_min, pick_max, climate_temperature_unit] | string | sha256)[:7] }}"
-  c_picker_title: "{{ (c_picker_kind | title) ~ '#' ~ room_pick.get('key', '') ~ '.' ~ c_picker_context }}"
+  c_picker_title: "{{ c_picker_kind | title }}"
+  c_picker_token: "{{ (c_picker_kind | title) ~ '#' ~ room_pick.get('key', '') ~ '.' ~ c_picker_context }}"
   c_choices: >-
     {% set ns = namespace(rows=[], values=[]) %}
     {% if c_ready and c_picker_kind in (['heat', 'cool'] if c_dual else ['set']) %}
@@ -1227,10 +1235,10 @@ variables:
       {% elif button in repeat_keys and media_key_target == '' and remote_target != '' and (cmd | string | trim) != '' %}{% set ns.s = 'remote_key' %}
       {% endif %}
     {% elif trigger.id == 'menu' %}
-      {% if (sel_title | string) == (watch_title | string) %}
+      {% if sel_context == watch_context and (sel_title | string) == (watch_title | string) %}
         {% if sel_index >= 0 and sel_index < (watch_list | length) and (sel_item | string) == watch_list[sel_index].label and
               (watch_list | selectattr('label', 'equalto', watch_list[sel_index].label) | list | length) == 1 %}{% set ns.s = 'run_watch' %}{% endif %}
-      {% elif (sel_title | string) == (listen_title | string) %}
+      {% elif sel_context == listen_context and (sel_title | string) == (listen_title | string) %}
         {% if sel_index >= 0 and sel_index < (listen_list | length) and (sel_item | string) == listen_list[sel_index].label and
               (listen_list | selectattr('label', 'equalto', listen_list[sel_index].label) | list | length) == 1 %}{% set ns.s = 'run_listen' %}{% endif %}
       {% elif pick_entity != '' and not pick_sub %}
@@ -1243,13 +1251,20 @@ variables:
       {% endif %}
     {% elif trigger.id == 'menu_cancel' %}
       {% if pick_entity != '' and pick_sub %}{% set ns.s = 'climate_back' if pick_temperature != '' else 'room_back' %}{% endif %}
-      {% if pick_entity == '' and (sel_title | string) not in ['', watch_title, listen_title, room_title] %}{% set ns.s = 'room_back' %}{% endif %}
+      {% if pick_entity == '' and sel_context != '' and (sel_title | string) not in ['', watch_title, listen_title, room_title] %}{% set ns.s = 'room_back' %}{% endif %}
     {% endif %}
     {% if (not menu_titles_valid and (trigger.id in ['menu', 'menu_cancel'] or (trigger.id == 'press' and button in ['list', 'watch', 'listen']))) or
           (not room_titles_valid and ns.s in ['open_room', 'run_watch', 'run_listen', 'room_run', 'room_toggle', 'room_open_sub', 'room_open_temp', 'room_sub', 'climate_back', 'room_back']) %}
       {% set ns.s = 'none' %}
     {% endif %}
     {{ ns.s }}
+  menu_context: >-
+    {% if situation == 'open_watch' %}{{ watch_context }}
+    {% elif situation == 'open_listen' %}{{ listen_context }}
+    {% elif situation in ['open_room', 'room_back'] %}{{ room_context }}
+    {% elif situation == 'room_open_temp' %}{{ c_picker_token }}
+    {% elif situation in ['room_open_sub', 'climate_back', 'room_sub'] and pick_idx >= 0 %}{{ room_list[pick_idx].context }}
+    {% endif %}
   # The scene / script / automation this event runs, and its name for the screen.
   run_entity: >-
     {% if situation == 'run_watch' %}{{ watch_list[sel_index].target }}
@@ -1448,6 +1463,7 @@ actions:
             items: "{{ menu_items | join('|') }}"
             selected_index: "{{ menu_index }}"
             show_selection: "{{ menu_show_selection }}"
+            context: "{{ menu_context }}"
 
   # 3. Run a scene / script / automation, or control a room device.
   - if:

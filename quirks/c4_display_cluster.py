@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Modified by masterdownload, 2026-10-14: raw sending, menu-selection control,
-# header, clock and text-colour commands.
+# Modified by masterdownload, 2026-10-24: raw sending, menu-selection control,
+# display settings and optional local-only menu context.
 # Derived from pvanbaren/zha-device-handlers; see docs/attribution.md.
 """C4SR260DisplayCluster — writable LCD-message attribute for the SR260 remote.
 
@@ -146,6 +146,7 @@ class C4SR260DisplayCluster(CustomCluster):
                 "items": t.LongCharacterString,
                 "selected_index": t.uint16_t,
                 "show_selection": t.uint8_t,
+                "context": t.CharacterString,
             },
             is_manufacturer_specific=True,
         )
@@ -390,7 +391,7 @@ class C4SR260DisplayCluster(CustomCluster):
         self._next_list_id = nxt
         return nxt
 
-    async def show_list(self, title, items, selected_index, show_selection=1):
+    async def show_list(self, title, items, selected_index, show_selection=1, context=""):
         """Push a menu / list to the SR260 LCD.
 
         `items` is a pipe-separated string ("Watch|Listen|Settings") since
@@ -409,7 +410,13 @@ class C4SR260DisplayCluster(CustomCluster):
 
         Calling `show_list` again replaces the previous menu.  Calling
         `close_list` (or pressing any list-dismissing key) clears it.
+        Optional context is local routing metadata, echoed in matching menu
+        events but never placed in the radio title or item frames.
         """
+        if not isinstance(context, str) or len(context) > 64 or any(
+            char not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#._-" for char in context
+        ):
+            raise ValueError("show_list: context must be at most 64 ASCII routing-token characters")
         items_list: list[str] = []
         if items is not None:
             items_list = [s for s in str(items).split("|")]
@@ -434,6 +441,7 @@ class C4SR260DisplayCluster(CustomCluster):
             "items": items_list,
             "selected_index": sel,
             "show_selection": _as_flag(show_selection),
+            "context": context,
         }
 
         device = self.endpoint.device
@@ -462,12 +470,14 @@ class C4SR260DisplayCluster(CustomCluster):
                 "retry while it's awake",
                 device.ieee, e,
             )
-            self._active_menu = None
+            if self._active_menu is not None and self._active_menu.get("list_id") == list_id:
+                self._active_menu = None
         except Exception:
             _LOGGER.warning(
                 "C4 display: show_list send failed", exc_info=True,
             )
-            self._active_menu = None
+            if self._active_menu is not None and self._active_menu.get("list_id") == list_id:
+                self._active_menu = None
             raise
 
     async def close_list(self):

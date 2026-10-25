@@ -87,9 +87,11 @@ Cancel returns to Room without a device action. After an action, reopen List
 to see fresh state. Compact fan-title tags bind the menu to its entity,
 layout, reported state and capabilities. If these change, the old selection
 is rejected/logged; the service path checks again immediately before sending.
-The current fan caption shows only four name characters followed by a routing
-tag, for example `Fan#12345678.f1234567`. This is a known display-UX limitation,
-not a different device name; a clean-name redesign is not included here.
+The caption now shows the human label, such as **Tower Fan** (up to 22
+characters), without the earlier visible hash. Routing tokens stay in local
+per-list context and are echoed only in matching menu events, not on the radio.
+This clean-title revision requires the updated display/button quirks and one
+full HA restart before the new blueprint.
 Unknown/unavailable fans show a read-only status. Unsupported controls are
 omitted; unencodable preset text gets a read-only explanation. Ambiguous
 sanitized/truncated preset labels are not guessed.
@@ -163,12 +165,11 @@ Picking a temperature never silently enables heating. Missing/invalid targets, l
 step disable temperature adjustments rather than guessing values. Unknown or
 unavailable thermostats cannot be controlled from these menus. Stale or
 unrecognized choices are rejected/logged without a thermostat write; reopen
-with List if the entity or room layout changed. Compact routing tags in
-thermostat titles bind each menu to its entity/layout and picker snapshot,
-within the 22-character title budget. Keep room names unique.
-For example, the picker caption can look like `Heat#12345678.90abcdef`
-or `Set#12345678.90abcdef`;
-the visible suffix is a routing tag, not a temperature. Choices are the numeric rows.
+with List if the entity or room layout changed. Hidden per-list routing
+context binds each menu to its entity/layout and picker snapshot. The visible
+caption is the thermostat name, **Heat**, **Cool** or **Set**, without hashes.
+Keep room names unique. A matching caption alone is not enough to run an
+action: the updated blueprint also requires exact context and row matching.
 
 A changed selected target, mode, step or limits invalidates an old picker.
 Measured-temperature updates do not invalidate it; a changed opposite target

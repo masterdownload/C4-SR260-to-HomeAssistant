@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Modified by masterdownload, 2026-10-17: diagnostic events, bounded probing,
-# raw frames, silent menus, screen announcements and passive battery reports.
+# Modified by masterdownload, 2026-10-24: diagnostic events, bounded probing,
+# display/battery announcements and list-ID-bound local menu context.
 # Derived from pvanbaren/zha-device-handlers; see docs/attribution.md.
 """C4 button clusters — shared across dimmer, switch, scene controller, outlet, remote.
 
@@ -929,14 +929,19 @@ class C4RemoteButtonCluster(C4ButtonCluster):
         display = self._get_display_cluster()
         item = None
         title = ""
+        context = ""
         show_selection = True
         if display is not None:
             menu = getattr(display, "_active_menu", None)
+            if menu is not None and menu.get("list_id") != list_id:
+                _LOGGER.debug("C4 SR260: ignoring stale menu_select for replaced list 0x%04X", list_id)
+                return
             if menu is not None and menu.get("list_id") == list_id:
                 items = menu.get("items") or []
                 item = items[sel_idx] if 0 <= sel_idx < len(items) else None
                 title = menu.get("title") or ""
                 show_selection = bool(menu.get("show_selection", True))
+                context = (menu.get("context") or "") if item is not None else ""
             display._active_menu = None
 
         self.listener_event(
@@ -947,6 +952,7 @@ class C4RemoteButtonCluster(C4ButtonCluster):
                 "selected_index": sel_idx,
                 "item": item,
                 "title": title,
+                **({"context": context} if context else {}),
                 ENDPOINT_ID: self.endpoint.endpoint_id,
             },
         )
@@ -973,10 +979,15 @@ class C4RemoteButtonCluster(C4ButtonCluster):
         """
         display = self._get_display_cluster()
         title = ""
+        context = ""
         if display is not None:
             menu = getattr(display, "_active_menu", None)
+            if menu is not None and menu.get("list_id") != list_id:
+                _LOGGER.debug("C4 SR260: ignoring stale menu_cancel for replaced list 0x%04X", list_id)
+                return
             if menu is not None and menu.get("list_id") == list_id:
                 title = menu.get("title") or ""
+                context = menu.get("context") or ""
             display._active_menu = None
 
         self.listener_event(
@@ -986,6 +997,7 @@ class C4RemoteButtonCluster(C4ButtonCluster):
                 "list_id": list_id,
                 "selected_index": sel_idx,
                 "title": title,
+                **({"context": context} if context else {}),
                 ENDPOINT_ID: self.endpoint.endpoint_id,
             },
         )
