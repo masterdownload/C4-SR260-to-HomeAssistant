@@ -17,5 +17,10 @@ NOTICE file. See docs/attribution.md for sources and modifications, and
 docs/third-party/zha-device-handlers-LICENSE-Apache-2.0.txt for the upstream
 license. Applicable upstream rights and notices are retained.
 
+The v0.3.4 modifications include bounded first-use display preparation,
+matching blueprint integration, public fake-radio tests and documentation.
+Modified quirk files carry prominent change notices; upstream attribution
+and licensing scope are unchanged.
+
 Independent community project, not affiliated with or endorsed by Control4,
 Snap One, Home Assistant or SONOFF. All trademarks belong to their owners.

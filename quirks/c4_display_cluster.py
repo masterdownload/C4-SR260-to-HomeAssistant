@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Modified by masterdownload, 2026-10-24: raw sending, menu-selection control,
-# display settings and optional local-only menu context.
+# Modified by masterdownload, 2026-10-29: raw sending, menu-selection control,
+# display settings, local-only menu context and bounded first-use preparation.
 # Derived from pvanbaren/zha-device-handlers; see docs/attribution.md.
 """C4SR260DisplayCluster — writable LCD-message attribute for the SR260 remote.
 
@@ -37,11 +37,15 @@ Commands (server side; call with `zha.issue_zigbee_cluster_command`, command_typ
   3  set_header(room, line2)                                     c4.ln.ri  home-screen header
   4  set_clock(hour, minute, second, weekday)                    c4.zr.tm  the remote's clock
   5  set_text_color(color)                                       c4.zr.tc  one RGB332 byte
+  6  prepare_display(room, line2, show_header, color, sync_clock,
+                     hour, minute, second, weekday, wake)        bounded wake/first-press setup
 """
 
+import asyncio
 import logging
 import os
 import sys
+import time
 import unicodedata
 
 _QUIRK_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -78,6 +82,9 @@ _LOGGER = logging.getLogger(__name__)
 # 20, and `0s<seq> c4.ln.ri "<22>" "<22>"` + CRLF is 67 bytes, inside the ~70
 # bytes one radio frame can carry.
 C4_HEADER_MAX_CHARS = 22
+_SETUP_RETRY_INTERVAL = 1.0
+_SETUP_MAX_ATTEMPTS = 3
+_SETUP_TIMEOUT = 0.4
 
 
 def _header_text(value) -> str:
@@ -196,6 +203,44 @@ class C4SR260DisplayCluster(CustomCluster):
             is_manufacturer_specific=True,
         )
 
+        prepare_display = ZCLCommandDef(
+            id=0x06,
+            schema={
+                "room": t.CharacterString,
+                "line2": t.CharacterString,
+                "show_header": t.uint8_t,
+                "color": t.int16s,
+                "sync_clock": t.uint8_t,
+                "hour": t.uint8_t,
+                "minute": t.uint8_t,
+                "second": t.uint8_t,
+                "weekday": t.uint8_t,
+                "wake": t.uint8_t,
+            },
+            is_manufacturer_specific=True,
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._display_lock = asyncio.Lock()
+        self._setup_fingerprint = None
+        self._setup_done: set[str] = set()
+        self._setup_attempts = 0
+        self._setup_next_attempt = 0.0
+        self._setup_cycle_started = float("-inf")
+        self._setup_send_task: asyncio.Task | None = None
+
+    def _ensure_setup_settled(self):
+        if self._setup_send_task is not None and not self._setup_send_task.done():
+            raise RuntimeError("previous display setup transport is still settling; retry on a new wake/press")
+
+    @staticmethod
+    def _consume_setup_task(task):
+        if not task.cancelled():
+            error = task.exception()
+            if error is not None and task.cancelling():
+                _LOGGER.warning("C4 display: cancelled setup transport later failed (%s)", error)
+
     # ------------------------------------------------------------------
     # Per-device active-menu state
     # ------------------------------------------------------------------
@@ -209,56 +254,111 @@ class C4SR260DisplayCluster(CustomCluster):
     _next_list_id: int = 0  # rolls 1..0xFFFF, never 0 (0 means "no list")
 
     # ------------------------------------------------------------------
-    # Startup — seed default + push current value to the LCD
+    # Startup and wake-safe display preparation
     # ------------------------------------------------------------------
 
     async def async_initialize(self, from_cache=False):
-        """On every HA / ZHA startup, push the cached display message to the LCD.
+        """Do not race a sleeping radio or replace room text with a model splash.
 
-        On first start (cache empty), seed the cache with the zigpy device
-        model name (e.g. ``"C4-SR260"``) so the LCD shows a sensible label
-        out of the box.  The user can override at any time by writing
-        ``display_message`` — that override persists in ZHA's attribute
-        cache and is what gets pushed on the next start.
-
-        Failures are logged at WARNING and swallowed: the SR260 is a sleepy
-        end-device, so the very first push may race the device's first
-        wake-up. The user just sees no LCD update that one boot.
+        Explicit display_message writes still work; cached transient messages
+        are not replayed at startup. The blueprint prepares the next usable wake.
         """
-        msg_id  = self.AttributeDefs.display_message.id
-        icon_id = self.AttributeDefs.display_icon.id
-
-        cached = self._attr_cache.get(msg_id)
-        if not isinstance(cached, str) or not cached:
-            device = self.endpoint.device
-            cached = getattr(device, "model", None) or "Remote"
-            self._update_attribute(msg_id, cached)
-            _LOGGER.info(
-                "C4 display [%s]: seeded default message %r",
-                device.ieee, cached,
-            )
-
-        icon = self._attr_cache.get(icon_id, C4_DISPLAY_DEFAULT_ICON)
-        try:
-            icon = int(icon) & 0xFF
-        except (TypeError, ValueError):
-            icon = C4_DISPLAY_DEFAULT_ICON
-
-        try:
-            await _c4_send_display_message(
-                self.endpoint.device, cached, icon=icon,
-            )
-            _LOGGER.info(
-                "C4 display [%s]: startup push %r (icon=0x%02X)",
-                self.endpoint.device.ieee, cached, icon,
-            )
-        except Exception as e:
-            _LOGGER.warning(
-                "C4 display [%s]: startup push failed — %s",
-                self.endpoint.device.ieee, e,
-            )
-
         await super().async_initialize(from_cache=from_cache)
+
+    async def prepare_display(
+        self, room, line2, show_header, color, sync_clock,
+        hour, minute, second, weekday, wake,
+    ):
+        """Prepare enabled settings once, retrying pending work on later events.
+
+        State is per device and process, not persisted. A successful transport
+        send is not LCD readback. No timer retries or loading splashes are used.
+        """
+        room, line2 = _header_text(room), _header_text(line2)
+        color = int(color)
+        clock = tuple(int(v) for v in (hour, minute, second, weekday))
+        if not -1 <= color <= 255 or not all(
+            0 <= v <= maximum for v, maximum in zip(clock, (23, 59, 59, 6))
+        ):
+            raise ValueError("prepare_display: invalid color or clock")
+        fingerprint = (room, bool(show_header), color, bool(sync_clock))
+        received = time.monotonic()
+        try:
+            await asyncio.wait_for(self._display_lock.acquire(), timeout=_SETUP_TIMEOUT)
+        except TimeoutError:
+            _LOGGER.warning(
+                "C4 display [%s]: setup busy; pending until a later wake/press",
+                self.endpoint.device.ieee,
+            )
+            return
+        try:
+            now = time.monotonic()
+            if now - received >= _SETUP_TIMEOUT:
+                _LOGGER.debug("C4 display [%s]: ignoring queued stale setup", self.endpoint.device.ieee)
+                return
+            self._ensure_setup_settled()
+            if (
+                fingerprint != self._setup_fingerprint
+                or (wake and now - self._setup_cycle_started >= _SETUP_RETRY_INTERVAL)
+            ):
+                self._setup_fingerprint = fingerprint
+                self._setup_done.clear()
+                self._setup_attempts = 0
+                self._setup_next_attempt = 0.0
+                self._setup_cycle_started = now
+            if now < self._setup_next_attempt or self._setup_attempts >= _SETUP_MAX_ATTEMPTS:
+                return
+            device = self.endpoint.device
+            settings = []
+            if show_header and self._active_menu is None:
+                settings.append(("header", None))
+            if color >= 0:
+                settings.append(("color", f"c4.zr.tc {color:02x}"))
+            if sync_clock:
+                settings.append(("clock", "c4.zr.tm " + " ".join(f"{v:02x}" for v in clock)))
+            pending = [(name, body) for name, body in settings if name not in self._setup_done]
+            if not pending:
+                return
+            self._setup_attempts += 1
+            self._setup_next_attempt = now + _SETUP_RETRY_INTERVAL
+            wire = None
+            try:
+                for name, body in pending:
+                    async def send(name=name, body=body):
+                        if name == "header":
+                            await _c4_send_room_info(device, room, line2)
+                        else:
+                            _, _, data = _c4_build_raw(device, "set", body)
+                            await _c4_transmit(device, data)
+
+                    remaining = _SETUP_TIMEOUT - (time.monotonic() - received)
+                    if remaining <= 0:
+                        raise TimeoutError("setup budget expired before sending")
+                    wire = self._setup_send_task = asyncio.create_task(send())
+                    wire.add_done_callback(self._consume_setup_task)
+                    done, _ = await asyncio.wait({wire}, timeout=remaining)
+                    if not done:
+                        wire.cancel()
+                        raise TimeoutError("setup transport exceeded the budget")
+                    wire.result()
+                    self._setup_done.add(name)
+            except asyncio.CancelledError:
+                if wire is not None and not wire.done():
+                    wire.cancel()
+                raise
+            except (zigpy.exceptions.DeliveryError, TimeoutError) as error:
+                _LOGGER.warning(
+                    "C4 display [%s]: setup %s pending after attempt %d/%d (%s); "
+                    "retry on a later wake/press, not on a timer",
+                    device.ieee, name, self._setup_attempts, _SETUP_MAX_ATTEMPTS, error,
+                )
+            else:
+                _LOGGER.debug(
+                    "C4 display [%s]: prepared %s (transport only, no LCD readback)",
+                    device.ieee, ", ".join(name for name, _ in pending),
+                )
+        finally:
+            self._display_lock.release()
 
     # ------------------------------------------------------------------
     # Attribute write — translate to c4.ln.dm / c4.ln.le
@@ -392,6 +492,12 @@ class C4SR260DisplayCluster(CustomCluster):
         return nxt
 
     async def show_list(self, title, items, selected_index, show_selection=1, context=""):
+        """Open a menu without racing a pending first-use header."""
+        async with self._display_lock:
+            self._ensure_setup_settled()
+            await self._show_list(title, items, selected_index, show_selection, context)
+
+    async def _show_list(self, title, items, selected_index, show_selection=1, context=""):
         """Push a menu / list to the SR260 LCD.
 
         `items` is a pipe-separated string ("Watch|Listen|Settings") since
@@ -529,6 +635,11 @@ class C4SR260DisplayCluster(CustomCluster):
                 )
 
     async def set_header(self, room, line2=""):
+        async with self._display_lock:
+            self._ensure_setup_settled()
+            await self._set_header(room, line2)
+
+    async def _set_header(self, room, line2=""):
         """Set the home-screen header: `c4.ln.ri "<room>" "<line2>"`.
 
         Both lines are reduced to plain ASCII and cut to C4_HEADER_MAX_CHARS.

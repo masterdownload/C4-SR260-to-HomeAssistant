@@ -1,6 +1,6 @@
-# Blueprint reference: Control4 SR-260 Room Remote v0.3.1
+# Blueprint reference: Control4 SR-260 Room Remote v0.3.4
 
-> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `10fec6683c12`). No tools or tests need to be run to install the blueprint.
+> Input reference for `blueprint/c4_sr260_room_remote.yaml` (sha256 `093cf3eb64f7`). No tools or tests need to be run to install the blueprint.
 
 Requires Home Assistant 2025.9.0 or newer. Run mode: `parallel` (up to 10 runs at once; extra runs are dropped silently).
 
@@ -24,14 +24,14 @@ Every trigger is a `zha_event` from the chosen remote.
 | Input | Name | Default | Type | What it does |
 |---|---|---|---|---|
 | `remote` | SR-260 remote | *required* | device (ZHA, Control4 C4-SR260) | The Control4 SR-260 in this room. |
-| `wake_text` | Header, line 1 (room name) | *(empty)* | text | The room name shown on the remote's screen whenever it is picked up (the status bar with the clock and battery stays visible). Templates are allowed. Leave blank to use the remote's area name in Home Assistant. |
+| `wake_text` | Header, line 1 (room name) | *(empty)* | text | The room name shown on pickup or first-use display setup (the status bar with the clock and battery stays visible). Templates are allowed. Leave blank to use the remote's area name in Home Assistant. |
 | `header_line2` | Header, line 2 | *(empty)* | text | Optional second line under the room name, e.g. {{ states('sensor.room_temperature') }} F. It is replaced by the volume while a volume target is set (see "TV / streamer control"). |
 | `room_off_target` | Room Off key | *(empty)* | entity (scene, script, automation) |   |
-| `show_header` | Show the header when the remote is picked up | on | on / off | Off leaves the screen as it is. The clock and text colour below are still sent. |
+| `show_header` | Show the header when the remote is picked up | on | on / off | Off skips the wake/first-use header. Enabled clock and text colour settings still apply; volume-key feedback is independent. |
 
 ## Screen look and clock (`screen_section`)
 
-Sent to the remote each time it is picked up.
+Prepared on pickup or first usable short press after startup or room/colour/enable-setting changes; active menus are preserved.
 
 | Input | Name | Default | Type | What it does |
 |---|---|---|---|---|

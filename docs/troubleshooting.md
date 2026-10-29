@@ -18,7 +18,9 @@ label or manifest comparison as proof of physical behavior.
 | Model cache cannot be read or saved | Preserve it and its backup, inspect JSON/permissions, and restart after a deliberate repair. Automatic persistence refuses to overwrite an unreadable cache |
 | Events arrive but no action | Inspect automation enabled state, chosen remote, target entities and trace; make sure only the intended automation owns that remote |
 | Key events arrive for a different device than the automation | Select the replacement remote in that automation while preserving its other inputs; discovery does not migrate old device references |
-| List works but the room-name header seems blank | Let the screen go completely dark, wait a few seconds, then pick up without pressing a key. Check the wake-text/header settings and a real wake event; pressing keys on an already-awake remote is not that test |
+| List works but the room-name header seems blank | Check the selected remote and header setting. With matching v0.3.4 code, first-use setup also runs on short press; an active menu deliberately defers the header. Close the menu, let the screen go dark and pick up again to check a fresh wake |
+| First-use preparation command is unknown | The new blueprint requires command 6 from the matching display quirk. Copy it into the existing custom-quirks directory and fully restart HA before using this blueprint; automation reload alone cannot load Python changes |
+| Setup warning says pending/busy | Retry is event-driven, not timed. After three attempts, use a fresh pickup/wake; inspect radio/delivery errors rather than repeatedly running actions against an asleep remote. Existing key actions still continue |
 | TV key does nothing | Verify the target `remote` entity and its integration-specific command names; Roku defaults are not universal |
 | Screen misses an update | The radio sleeps; test immediately after a remote event, not an arbitrary delayed push; reduce avoidable delays |
 | Wrong menu opens or selection runs wrong row | Use distinct menu titles and unique short row labels; compare saved inputs and automation trace |
@@ -49,6 +51,8 @@ label or manifest comparison as proof of physical behavior.
 
 Keep the 15 quirks and blueprint from the same package version. Compare
 unexpected changes with your backup before replacing files.
+Preserve additional local modules and merge any changes to locally customized
+package files; a manifest mismatch is not permission to discard customizations.
 `MANIFEST.sha256` records checksums for those files with CRLF normalized to LF.
 It is an optional integrity reference, not something you need to run to install.
 Checksums detect differences, not author identity or a trustworthy download.

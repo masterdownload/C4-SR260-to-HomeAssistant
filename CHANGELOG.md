@@ -1,9 +1,36 @@
 # Public package changelog
 
+## v0.3.4
+
+2026-10-29 experimental first-use display update. Version skips distinguish
+this update from intervening experimental builds; they do not invent public
+releases for v0.3.2/v0.3.3. Measured latency and full reset/LCD acceptance
+have not been established.
+
+- New display command 6 prepares the enabled room header, color and clock in
+  that order on pickup/first usable short press. Per-device in-memory state
+  detects room/color/enable changes and avoids routine per-key setup traffic.
+- Failed/unsent settings remain pending: at most three event-driven attempts
+  per wake/configuration cycle, at least one second apart, with a 400 ms
+  software timeout including lock wait. No timer retries, helper entities,
+  disk persistence or Loading flashes.
+- Preparation and menu opening serialize; an active menu defers the header
+  without clearing, replacing or navigating the list. Existing button actions,
+  all input keys/defaults/selectors, fan/climate routing and title normalization
+  are preserved. Ordinary hold/release/menu events do not trigger preparation.
+- Stop sending a model-label or cached-message splash at ZHA startup; explicit
+  display-message writes still work. Startup settings wait for real events.
+- Requires the matching display quirk and one full HA restart before switching
+  the blueprint. Includes fake-radio regression tests; these establish code
+  behavior, not LCD readback, pairing speed or physical end-to-end success.
+- Existing matching public installs update only the display module and
+  blueprint, preserving all other modules, automation inputs and local
+  customizations. New installations still need all 15 public quirk modules.
+
 ## v0.3.1
 
 2026-10-24 title-only cleanup: remove `(menus, room controls, full remote,
-clock, volume)` from the blueprint name. Current title:
+clock, volume)` from the blueprint name. Title at that checkpoint:
 **Control4 SR-260 Room Remote v0.3.1**. Runtime, inputs and quirk bytes unchanged.
 Patch increment follows the deployable metadata rule. Historical titles below
 are preserved; no tag/release implied.
@@ -130,5 +157,6 @@ stable release. Entries below describe their sequence, not new deployments.
 - Apache-2.0 license evidence, upstream attribution, prominent modified-file
   notices, generic examples and public-only documentation.
 
-The full new blueprint behavior has not yet been physically verified. No
-private deployment chronology, automation instances, tests or tools are included.
+The full new blueprint behavior had not yet been physically verified at this
+checkpoint. The initial package did not include private deployment chronology,
+automation instances, tests or tools; v0.3.4 adds public fake-radio tests.

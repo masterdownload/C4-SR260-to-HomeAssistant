@@ -11,8 +11,9 @@ authors retain their applicable rights and credits.
 
 This package is a fresh public-oriented distribution, not a copy of the private
 development repository's history. The blueprint and user documentation use
-generic examples and synthetic identifiers. Tests, helper/development tools,
-personal automation instances and deployment records are not distributed here.
+generic examples and synthetic identifiers. The first-use display tests use a
+fake radio. Private helper/development tools, personal automation instances and
+deployment records are not distributed here.
 
 ## Upstream sources and license evidence
 
@@ -45,7 +46,7 @@ Compared with the pinned pvanbaren source after normalizing CRLF to LF:
 | `c4_helpers.py` | defjam903 button fallback; raw-frame/length/sequence helpers; strict identity parsing and atomic persistence; identity-send/radio status checking; experimental single-row menu replies; prominent source/modification notice |
 | `c4_hooks.py` | Strict pre-quirk SR-260 discovery, validated announce probing, safe raw-device lifecycle promotion and ZHA refresh; response-first registration with expiring recovery budget, cooldown and active-status suppression; preserve other-device/normal initialization routing; prominent modification notice |
 | `c4_button_cluster.py` | Diagnostics, bounded probing, silent selection/display announcements and passive battery reports; echo local context only for matching list IDs and ignore replaced-list events; prominent modification notice |
-| `c4_display_cluster.py` | Raw-send/display settings; `show_selection`; bounded optional local-only menu context and list-owned failure cleanup; prominent modification notice |
+| `c4_display_cluster.py` | Raw-send/display settings; `show_selection`; bounded optional local-only menu context and list-owned failure cleanup; serialized per-device first-use preparation and removal of startup splashes; prominent modification notice |
 | `control4_remote.py` | Clone the resolved SR-260 node descriptor and clear only its incorrect mains-power bit for native battery diagnostics; preserve raw descriptor and other flags; prominent modification notice |
 
 The other 10 modules are unchanged apart from checkout line-ending
@@ -56,9 +57,10 @@ normalization: `c4_basic_cluster.py`, `c4_led_cluster.py`,
 They are included because the modules import each other, not as a claim of
 physical testing or support for all those device types.
 
-Public-package changes to the other distributed source files are licensing
-notices, blueprint author attribution and generic documentation examples.
-The private installation is not modified by this distribution.
+Other public-package contributions include the room-control blueprint,
+first-use display regression tests, licensing notices and generic
+documentation examples. The package does not contain local deployment
+customizations or modify an installation automatically.
 
 ## External references and dependencies
 

@@ -1,6 +1,6 @@
 # Behavior and limits
 
-These are implemented v0.3.1 features, not a claim of completed physical testing.
+These are implemented v0.3.4 features, not a claim of completed physical testing.
 See the [evidence limits in the README](../README.md).
 
 ## Automatic identity learning
@@ -251,9 +251,49 @@ transmits. Earlier testing indicated a roughly half-second receive window,
 not a guaranteed timing budget. A held key can keep it reachable. Arbitrary
 unsolicited screen updates will often miss it.
 
-The blueprint sends the header, optional color and clock on wake, and refreshes
-the volume line on volume actions. Whether the full sequence reaches a real
-remote within its listening window remains an end-to-end physical test.
+The blueprint calls display preparation on wake and short press, before the
+existing key action. The quirk sends the enabled **header, then color, then
+clock**. A first Watch/Listen/List press still opens its existing menu; it is
+not consumed and does not run a menu row or any unrelated equipment action.
+Volume feedback still refreshes after volume actions.
+
+The quirk keeps a per-device, in-memory fingerprint of the normalized room,
+header enable flag, color byte (including disabled) and clock enable flag.
+Changing these starts fresh preparation on the next usable event. Clock
+seconds and the dynamic second line/volume are deliberately not fingerprint
+inputs: ordinary keys must not continually replace a selected-source label.
+Second-line-only changes appear on the next wake, or existing volume refresh.
+State is cleared when the device/quirk is recreated, including HA restart;
+there is no helper entity, disk store or saved automation input to provision.
+
+Successful settings are deduplicated until the next wake/configuration cycle.
+Wake events within one second of starting a cycle are coalesced with it.
+Failed or unsent settings remain pending for a later eligible event, with at
+most three attempts per cycle and at least one second between attempts.
+There is **no retry timer** and no setup on hold/release/menu events. A fresh
+wake or changed fingerprint permits another cycle. Each call has a 400 ms
+software timeout including the menu-lock wait; this bounds setup waiting,
+not the radio's physical response or subsequent equipment action.
+If a transport ignores cancellation, its task is retained and further
+preparation/menu/header sends fail explicitly until it settles, rather than
+overlapping a potentially late room-header write.
+
+An active menu defers the room-header write; it is not cleared or replaced.
+Color/clock may still be prepared. Menu opening shares the preparation lock
+so a queued header cannot arrive after a newly opened menu. The pending header
+can be attempted on a later short press/wake once the menu is closed.
+No Loading splash is sent: it would add radio traffic and could hide the
+content the user requested. Startup no longer seeds/sends a model label or
+replays a cached transient message; explicit display-message writes are
+unchanged.
+
+Completion records successful transport sends, **not remote display
+readback**. Non-success device replies remain visible through existing
+`c4_reply` events; a device-side refusal after a successful send is not
+automatically retried until the next wake/configuration cycle. Missed events,
+asleep radios and a retained active-menu state can defer setup. This does not
+change discovery/registration, guarantee pairing speed, or prove that the
+whole sequence fits a particular remote's receive window.
 
 Expect roughly 17-20 visible characters across and only a few menu rows at
 once. Use labels around 12 characters so appended states fit. Menus page as

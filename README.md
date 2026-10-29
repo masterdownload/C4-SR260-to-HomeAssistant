@@ -1,14 +1,15 @@
 # C4-SR260-to-HomeAssistant
 
-**Experimental v0.3.1.** Use a Control4 SR-260 remote with Home Assistant **ZHA**,
+**Experimental v0.3.4.** Use a Control4 SR-260 remote with Home Assistant **ZHA**,
 without a Control4 controller.
 
 **Build tracking:** `VERSION` is shared by the package and blueprint. Every
 subsequent published blueprint or quirk change/fix increments the patch:
-**v0.3.2, v0.3.3, ...**, even while experimental. Minor/major checkpoints
+**v0.3.5, v0.3.6, ...**, even while experimental. Minor/major checkpoints
 are chosen explicitly; documentation/tests-only updates do not change
-deployable versions. This v0.3.1 update shortens the title, not runtime
-behavior or quirk bytes. No stable release/tag is implied.
+deployable versions. This v0.3.4 update adds wake/first-use display preparation.
+The version distinguishes it from intervening experimental builds; no stable
+release/tag or complete physical acceptance is implied.
 
 Watch/Listen menus, room controls, TV keys, volume, screen text and clock.
 Optional scene/automation media-key actions and a native ZHA Battery diagnostic
@@ -26,14 +27,17 @@ cannot share one with Zigbee2MQTT. [Safety and recovery](docs/safety.md).
 - [Download the package ZIP](https://github.com/masterdownload/C4-SR260-to-HomeAssistant/archive/refs/heads/main.zip)
 - [Download the blueprint YAML](https://raw.githubusercontent.com/masterdownload/C4-SR260-to-HomeAssistant/main/blueprint/c4_sr260_room_remote.yaml)
 
-## Install
+## New installation
 
 **1. Copy the quirk files.** Unzip the package and copy **all 15 files** from
 `quirks` directly into `/config/custom_zha_quirks/` in Home Assistant.
 Do not put them inside another subfolder.
 
 Already have a `custom_quirks_path`? Keep that path and put the files there
-instead, alongside your existing quirks. Back up any files you would replace.
+instead, alongside your existing quirks. Back up and compare any filename
+collisions; do not overwrite local changes blindly. Existing package users
+should follow the [upgrade instructions](docs/install.md#first-use-display-update)
+rather than copy the whole package over their customizations.
 
 **2. Add this to `configuration.yaml`**, then check configuration and fully
 restart Home Assistant:
@@ -93,7 +97,20 @@ with a preserved model cache. A truly uncached first join is not yet physically
 verified. Existing installs need the updated quirks plus one full HA restart;
 replacing only the blueprint cannot fix missing radio events.
 
-No installer, helper tools or tests to run. No command-line Python required.
+**First-use display update:** install the matching `c4_display_cluster.py`
+before the v0.3.4 blueprint and perform **one full HA restart**. Automation
+reload alone is insufficient. No new helpers, input migration, model-cache
+edits or routine re-pairing are required. The next usable pickup/short press
+prepares the enabled room header and color ahead of the clock; the same key
+still runs its existing action. No Loading splash or startup model label is
+sent. Pending settings use bounded event-driven retries and successful settings
+are deduplicated. For an existing matching public package, only the display
+module and blueprint need updating; preserve every other installed module.
+If the display file has local changes, merge the update rather than replace
+those changes. See [installation and physical checks](docs/install.md#first-use-display-update).
+
+No installer or helper tools are required. Users need not run tests or
+command-line Python.
 [Installation details](docs/install.md) · [Features](docs/features.md) ·
 [Inputs](docs/blueprint-reference.md) · [Troubleshooting](docs/troubleshooting.md).
 

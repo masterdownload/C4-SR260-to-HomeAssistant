@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Original contributions attributed to masterdownload; see docs/attribution.md.
 blueprint:
-  name: Control4 SR-260 Room Remote v0.3.1
+  name: Control4 SR-260 Room Remote v0.3.4
   author: masterdownload
   domain: automation
   homeassistant:
@@ -14,10 +14,11 @@ blueprint:
     * Optional scene / automation on **Room Off**, **I / II / III**, **Prev** and **DVR**.
     * **Full remote**: D-pad, transport, digits, channel / page and colour keys go to a `remote` entity (the key names of Home Assistant's Roku integration by default). **Vol + / - / Mute** go to a media player.
     * Optional **scene or automation overrides** for media keys run once on short press instead of sending a remote command. Empty overrides preserve commands and their existing hold repeats.
-    * **When the remote is picked up** its screen gets a header (the room name, and the volume as a text bar on the second line), its clock is set, and your text colour and brightness are applied. The volume line is refreshed after every volume key.
+    * **On pickup or first usable short press** the enabled display settings are prepared: room header, then text colour/brightness, then clock. Successful setup is not repeated on every key; failed settings retry only on later wake/press events. Active menus keep their contents and navigation. The volume line is refreshed after every volume key.
 
-    Version **v0.3.1** (experimental, not a stable release). Subsequent published blueprint or quirk changes increment the patch version (v0.3.2, v0.3.3, ...).
-    Needs the matching 15 quirk files in this package: install them and restart Home Assistant first, then this blueprint. This build shortens the blueprint title only; quirk bytes and runtime behavior are unchanged from v0.3.0.
+    Version **v0.3.4** (experimental, not a stable release). Subsequent published blueprint or quirk changes increment the patch version.
+    Requires the matching updated display quirk and one full Home Assistant restart before this blueprint; automation reload alone cannot load the new preparation command. No extra helpers or Loading splash.
+    New installations need all 15 quirk files in this package. For an existing matching package installation, update only the display module and preserve the other installed modules.
     Keep names short (about 12 characters; the screen shows roughly 17-20 and the state is added after the name). Names must be unique, and the Watch, Listen and Room menu titles must all be different.
     While a menu is open the remote handles Up / Down / Select / Cancel itself.
     Command-name reference (manual lookup only; nothing is downloaded at runtime): https://github.com/masterdownload/C4-SR260-to-HomeAssistant/blob/main/docs/remote-commands.md
@@ -35,7 +36,7 @@ blueprint:
     wake_text:
       name: Header, line 1 (room name)
       description: >-
-        The room name shown on the remote's screen whenever it is picked up (the status bar with the clock and battery stays visible).
+        The room name shown on pickup or first-use display setup (the status bar with the clock and battery stays visible).
         Templates are allowed. Leave blank to use the remote's area name in Home Assistant.
       default: ""
       selector:
@@ -58,7 +59,7 @@ blueprint:
             - automation
     show_header:
       name: Show the header when the remote is picked up
-      description: Off leaves the screen as it is. The clock and text colour below are still sent.
+      description: Off skips the wake/first-use header. Enabled clock and text colour settings still apply; volume-key feedback is independent.
       default: true
       selector:
         boolean:
@@ -66,7 +67,7 @@ blueprint:
     screen_section:
       name: Screen look and clock
       icon: mdi:palette
-      description: Sent to the remote each time it is picked up.
+      description: Prepared on pickup or first usable short press after startup or room/colour/enable-setting changes; active menus are preserved.
       collapsed: false
       input:
         sync_clock:
@@ -1392,24 +1393,36 @@ variables:
   menu_show_selection: "{{ 1 if situation in ['open_watch', 'open_listen'] else 0 }}"
 
 actions:
-  # 0. On pick-up: the text colour and the clock (each only when enabled). The header follows in step 6.
+  # 0. Prepare first-use/pending display settings without consuming the key.
   - if:
-      - "{{ situation == 'wake' and set_text_color }}"
+      - "{{ trigger.id in ['wake', 'press'] and (show_header or set_text_color or sync_clock) }}"
     then:
-      - action: zha.issue_zigbee_cluster_command
-        continue_on_error: true
-        data:
-          ieee: "{{ remote_ieee }}"
-          endpoint_id: 1
-          cluster_id: 64583
-          cluster_type: in
-          command: 5
-          command_type: server
-          params:
-            color: "{{ text_color_byte }}"
-  - if:
-      - "{{ situation == 'wake' and sync_clock }}"
-    then:
+      - variables: &header_values
+          vol_state: "{{ states(volume_target) if volume_target != '' else '' }}"
+          vol_muted: "{{ is_state_attr(volume_target, 'is_volume_muted', true) if volume_target != '' else false }}"
+          vol_pct: >-
+            {{ [[((state_attr(volume_target, 'volume_level') | float(0)) * 100) | round(0) | int, 0] | max, 100] | min if volume_target != '' else 0 }}
+          vol_number: >-
+            {% if volume_precision == 'decimal' %}
+              {% set pct = [[0, (state_attr(volume_target, 'volume_level') | float(0)) * 100] | max, 100] | min %}
+              {{ '%.1f' | format(pct) }}
+            {% else %}{{ vol_pct }}{% endif %}
+          vol_line: >-
+            {% if volume_target == '' or not show_volume %}{{ header_line2 }}
+            {%- elif vol_state in ['off', 'unavailable', 'unknown', 'standby'] %}Vol: device off
+            {%- elif vol_muted %}Muted
+            {%- elif volume_style == 'number' %}Vol {{ vol_number }}%
+            {%- elif volume_style == 'bar' %}{{ '+' * (vol_pct // 5) }}{{ '-' * (20 - vol_pct // 5) }}
+            {%- elif volume_style in ['hash', 'equals', 'star', 'marker'] %}
+              {%- set segments = (((vol_number | float(0)) + 5) / 10) | int %}
+              {%- if volume_style == 'marker' %}
+                [{{ ('.' * (segments - 1)) ~ '>' ~ ('.' * (10 - segments)) if segments > 0 else '.' * 10 }}] {{ vol_number }}%
+              {%- else %}
+                {%- set fill = {'hash': '#', 'equals': '=', 'star': '*'}[volume_style] %}
+                [{{ fill * segments }}{{ ('.' if volume_style == 'equals' else '-') * (10 - segments) }}] {{ vol_number }}%
+              {%- endif %}
+            {%- else %}Vol {{ vol_number }} {{ '+' * (vol_pct // 10) }}{{ '-' * (10 - vol_pct // 10) }}
+            {%- endif %}
       - variables:
           # One reading of the clock, so the hour, minute and second can never straddle a rollover. Weekday: Monday = 1 ... Sunday = 0.
           clock_now: >-
@@ -1422,13 +1435,19 @@ actions:
           endpoint_id: 1
           cluster_id: 64583
           cluster_type: in
-          command: 4
+          command: 6
           command_type: server
           params:
+            room: "{{ header_room }}"
+            line2: "{{ vol_line | trim }}"
+            show_header: "{{ 1 if show_header else 0 }}"
+            color: "{{ text_color_byte if set_text_color else -1 }}"
+            sync_clock: "{{ 1 if sync_clock else 0 }}"
             hour: "{{ clock_now['hour'] }}"
             minute: "{{ clock_now['minute'] }}"
             second: "{{ clock_now['second'] }}"
             weekday: "{{ clock_now['weekday'] }}"
+            wake: "{{ 1 if trigger.id == 'wake' else 0 }}"
 
   # 1. Text on the remote's screen.
   - if:
@@ -1597,39 +1616,13 @@ actions:
         data:
           command: "{{ cmd | trim }}"
 
-  # 6. The header: on pick-up (room name and volume), and the volume line again after every volume key. After a volume key
-  #    the receiver needs a moment to report its new level; the wait stays well inside the remote's ~0.5 s listening window.
+  # 6. Refresh volume after the receiver has had a moment to report its new level.
   - if:
-      - "{{ (situation == 'wake' and show_header) or (situation in ['volume', 'volume_release'] and show_volume and volume_target != '') }}"
+      - "{{ situation in ['volume', 'volume_release'] and show_volume and volume_target != '' }}"
     then:
       - delay:
-          milliseconds: "{{ 0 if situation == 'wake' else volume_settle_ms }}"
-      - variables:
-          vol_state: "{{ states(volume_target) if volume_target != '' else '' }}"
-          vol_muted: "{{ is_state_attr(volume_target, 'is_volume_muted', true) if volume_target != '' else false }}"
-          vol_pct: >-
-            {{ [[((state_attr(volume_target, 'volume_level') | float(0)) * 100) | round(0) | int, 0] | max, 100] | min if volume_target != '' else 0 }}
-          vol_number: >-
-            {% if volume_precision == 'decimal' %}
-              {% set pct = [[0, (state_attr(volume_target, 'volume_level') | float(0)) * 100] | max, 100] | min %}
-              {{ '%.1f' | format(pct) }}
-            {% else %}{{ vol_pct }}{% endif %}
-          vol_line: >-
-            {% if volume_target == '' or not show_volume %}{{ header_line2 }}
-            {%- elif vol_state in ['off', 'unavailable', 'unknown', 'standby'] %}Vol: device off
-            {%- elif vol_muted %}Muted
-            {%- elif volume_style == 'number' %}Vol {{ vol_number }}%
-            {%- elif volume_style == 'bar' %}{{ '+' * (vol_pct // 5) }}{{ '-' * (20 - vol_pct // 5) }}
-            {%- elif volume_style in ['hash', 'equals', 'star', 'marker'] %}
-              {%- set segments = (((vol_number | float(0)) + 5) / 10) | int %}
-              {%- if volume_style == 'marker' %}
-                [{{ ('.' * (segments - 1)) ~ '>' ~ ('.' * (10 - segments)) if segments > 0 else '.' * 10 }}] {{ vol_number }}%
-              {%- else %}
-                {%- set fill = {'hash': '#', 'equals': '=', 'star': '*'}[volume_style] %}
-                [{{ fill * segments }}{{ ('.' if volume_style == 'equals' else '-') * (10 - segments) }}] {{ vol_number }}%
-              {%- endif %}
-            {%- else %}Vol {{ vol_number }} {{ '+' * (vol_pct // 10) }}{{ '-' * (10 - vol_pct // 10) }}
-            {%- endif %}
+          milliseconds: "{{ volume_settle_ms }}"
+      - variables: *header_values
       - action: zha.issue_zigbee_cluster_command
         continue_on_error: true
         data:

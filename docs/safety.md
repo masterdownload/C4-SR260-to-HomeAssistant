@@ -1,6 +1,6 @@
 # Safety, upgrades and recovery
 
-**Experimental v0.3.1; AS IS, without warranty.** Make a full Home Assistant
+**Experimental v0.3.4; AS IS, without warranty.** Make a full Home Assistant
 backup before installation or upgrade. Keep a separate recovery-accessible
 copy of configuration, custom quirks, blueprint and automation inputs.
 
@@ -13,9 +13,10 @@ tests reduce risk, not eliminate it.
 
 Reported development testing used Home Assistant 2026.9.4, SONOFF ZBDongle-E
 with EZSP, channel 15 and three remotes. The full new blueprint behavior has
-not been physically verified. At the source handoff, configuration had been
-loaded but no remote event had exercised the new full behavior. This package
-does not claim a later physical result.
+not been fully physically verified. Fake-radio tests cover first-use ordering,
+pending retries and menu protection, not LCD readback, measured latency or
+full reset/replacement acceptance. Do not treat successful configuration loading
+or a service call as proof of those results.
 
 ZHA only; no Zigbee2MQTT support or shared coordinator. Automatic SR-260
 identity learning needs a paired, awake remote and validated identity traffic;
@@ -35,6 +36,10 @@ update. Recognition/key-trigger metadata is not proof of physical operation.
 ZHA reads one `custom_quirks_path`. Keep an existing path and its contents.
 Copy the files into that existing directory. Check collisions before replacing files.
 Do not disable unrelated quirks by redirecting ZHA to a new empty directory.
+Retain additional local modules. If a package module has local enhancements,
+merge the relevant changes rather than overwrite those enhancements blindly.
+For a matching public-package v0.3.4 upgrade, only the display module and
+blueprint change; do not replace the other modules unnecessarily.
 
 ## Safe upgrades
 

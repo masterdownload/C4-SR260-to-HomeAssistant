@@ -8,13 +8,18 @@ and may affect other devices. They do not change remote firmware.
 
 ## 1. Copy and enable the quirks
 
+These steps are for a new installation. Existing matching package users
+should use the [first-use display upgrade](#first-use-display-update).
+
 Download and unzip the package. Using your usual file-access method, copy all
 15 files from `quirks` directly into `/config/custom_zha_quirks/`.
 
 If you already have a `custom_quirks_path`, use **that directory** instead.
 Preserve its other files and configuration. Back up any filename collisions
-before replacing them. All 15 modules are needed because they import each other;
-do not create an extra `control4` subfolder.
+and compare local modifications before replacing them. Do not copy the whole
+package over a customized installation blindly. All 15 public modules are
+needed because they import each other; do not create an extra `control4`
+subfolder or delete additional local modules.
 
 If you have no existing ZHA YAML block, add:
 
@@ -182,8 +187,8 @@ Check acceptance in order:
 4. Let the screen go fully dark, wait a few seconds, then pick it up without
    pressing a key. Confirm the configured room-name header appears.
 
-The header is wake-driven; repeatedly pressing keys while already awake is not
-the same test. Select the correct device in each automation when replacing a
+The header refreshes on wake; v0.3.4 also prepares pending first-use settings on
+short press. Select the correct device in each automation when replacing a
 remote. These quirks do not migrate an old device reference automatically.
 Keep all automation inputs when updating the blueprint path.
 
@@ -230,6 +235,64 @@ files with the package set backed up and perform one full HA restart. Then
 switch the staged blueprint path while preserving inputs. Its optional local
 menu context is new: the clean-title blueprint must not run with older quirks.
 Older blueprint callers remain compatible with the updated quirks.
+
+### First-use display update
+
+For an existing matching package install, only `quirks/c4_display_cluster.py`
+and `blueprint/c4_sr260_room_remote.yaml` have changed deployable behavior in
+v0.3.4. Keep the 15 public quirk modules available and preserve any additional
+local modules; do not remove unchanged files or overwrite custom quirks.
+If the display module has local changes, merge the first-use changes into
+that file rather than replace its other behavior. Back up the current quirk
+and blueprint files plus each automation's complete saved inputs before copying.
+
+Copy the updated display module to the **existing configured custom-quirks
+directory**, check HA configuration and perform **one full Home Assistant
+restart**. Only after the new quirk has loaded, replace the backed-up blueprint
+at its existing path and reload automations once. Keep every automation input,
+identity, path and enabled state unchanged. Alternatively, stage a new blueprint
+filename and change only `use_blueprint.path`, preserving the complete input
+mapping. Do not use UI Re-assign or recreate automations. An automation reload
+cannot load the new Python command. No helper entities, disk state, model-cache
+modifications, extra setup automation or routine re-pairing are needed.
+
+The updated quirk also works with older blueprint callers, but no longer
+pushes a model/cached-message splash at startup. To roll back, restore the
+saved blueprint file and any changed paths/inputs; restoring old quirk Python also needs a full
+restart. Do not mix the new command-6 blueprint with an old display module.
+
+For a reset/replacement test, while present:
+
+1. Pair/recognize one intended test remote using the existing onboarding
+   procedure. Verify actual key events, not just its device model. If replacing
+   another remote, change only that automation's selected device and preserve
+   every room/menu/action setting.
+2. With the automation enabled and no menu open, use the first usable pickup or
+   a harmless short press. Observe the configured room name and text color;
+   verify that the same key's normal action still happens. Capture the trace
+   and any delivery warning. The quirk orders header/color before clock, but
+   visual success and elapsed time must be observed rather than assumed.
+3. Repeat with Watch, Listen and List as the first press after a restart or
+   room/color change. Verify the correct menu opens, navigation/Select/Cancel
+   still work and initialization does not run a row, close the list or replace
+   its title. Use harmless configured targets.
+4. Close the menu and change the room name or color while the remote is awake.
+   The next short press should prepare the new enabled settings and still run
+   its existing action. Check fan and climate submenus, clean titles, existing
+   volume feedback and configured keys without changing their saved inputs.
+5. Let the screen go dark and pick up normally several times. Confirm the
+   expected header/color/clock, no Loading/model-label flash and no repeated
+   setup traffic on ordinary keys after success. If a delivery fails, use later
+   real events; after three attempts use a fresh wake. Never infer LCD success
+   solely from a completed HA service call.
+
+The included offline tests use real ZHA parameter conversion and a fake radio,
+not HA/device access. Maintainers can run `python tests/test_first_use_display.py`
+in an isolated Python 3.13 environment with `zha==2.2.2`,
+`zha-quirks==2.2.2`, `zigpy==2.2.0`, `PyYAML==6.0.3` and `Jinja2==3.1.6`;
+installing these into HA is not required or recommended. The public suite
+contains 29 fake-radio/template checks. These tests do not establish physical
+display/pairing results.
 
 The optional media-key action sections accept a scene/automation instead of
 that key's command. Overrides run once on short press, never while held;
